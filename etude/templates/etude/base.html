@@ -1,0 +1,77 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titre %}{{ config.nom_etude }}{% endblock %}</title>
+  <style>
+    /* Direction : laboratoire calme. La vidéo est l'unique foyer d'attention ;
+       tout le reste est neutre et silencieux pour ne pas biaiser le jugement.
+       Palette froide et basse en saturation ; rien qui attire l'œil hors du clip. */
+    :root {
+      --fond: #14171c;        /* gris-bleu très sombre, repos visuel */
+      --surface: #1d2127;
+      --bord: #2c323b;
+      --texte: #e6e8ec;
+      --texte-doux: #9aa3af;
+      --accent: #6ea8c4;      /* bleu froid désaturé, utilisé avec parcimonie */
+      --accent-fonce: #4f8aa6;
+      --erreur: #c98b8b;
+      --rayon: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--fond);
+      color: var(--texte);
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    .cadre {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--texte-doux);
+      margin: 0 0 8px;
+    }
+    h1 { font-size: 26px; font-weight: 600; margin: 0 0 16px; letter-spacing: -0.01em; }
+    p { color: var(--texte-doux); }
+    p.intro { color: var(--texte); }
+    .bouton {
+      appearance: none; border: 0; cursor: pointer;
+      background: var(--accent-fonce); color: #fff;
+      font-size: 15px; font-weight: 600;
+      padding: 12px 22px; border-radius: var(--rayon);
+      transition: background .15s ease;
+    }
+    .bouton:hover { background: var(--accent); }
+    .bouton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .bouton.secondaire {
+      background: transparent; color: var(--texte-doux);
+      border: 1px solid var(--bord);
+    }
+    .bouton.secondaire:hover { color: var(--texte); border-color: var(--texte-doux); }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+    .erreur {
+      background: rgba(201,139,139,.12); border: 1px solid var(--erreur);
+      color: var(--erreur); padding: 12px 16px; border-radius: var(--rayon);
+      margin-bottom: 20px; font-size: 14px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="cadre">
+    {% block contenu %}{% endblock %}
+  </main>
+</body>
+</html>

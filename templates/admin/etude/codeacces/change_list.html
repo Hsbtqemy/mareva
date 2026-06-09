@@ -1,0 +1,8 @@
+{% extends "admin/change_list.html" %}
+{# Ajoute un bouton « Générer 20 codes » au-dessus de la liste des codes d'accès. #}
+{% block object-tools-items %}
+  <li>
+    <a href="generer/" class="addlink">Générer 20 codes</a>
+  </li>
+  {{ block.super }}
+{% endblock %}

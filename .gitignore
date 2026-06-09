@@ -1,0 +1,24 @@
+# Base de données locale (données de dev/démo — ne pas versionner)
+db.sqlite3
+*.sqlite3
+
+# Bytecode / caches Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Fichiers média déposés (clips, audio, sous-titres) et statiques collectés
+/media/
+/staticfiles/
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+
+# Outils / éditeurs
+.idea/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db

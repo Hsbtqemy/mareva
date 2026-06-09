@@ -1,0 +1,149 @@
+{% extends "etude/base.html" %}
+{% block titre %}Évaluation d'un extrait{% endblock %}
+
+{% block contenu %}
+  <p class="eyebrow">
+    Extrait à évaluer{% if total_pages > 1 %} — page {{ page|add:1 }} / {{ total_pages }}{% endif %}
+  </p>
+
+  {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
+
+  {% if afficher_clip %}
+    <div class="lecteur">
+      {# La source pointe vers la vue protégée, pas vers un fichier statique. #}
+      <video controls preload="metadata" playsinline>
+        <source src="{% url 'media_protege' 'video' enregistrement.code %}" type="video/mp4">
+        {% if enregistrement.fichier_vtt %}
+          <track default kind="subtitles" srclang="fr" label="Français"
+                 src="{% url 'media_protege' 'vtt' enregistrement.code %}">
+        {% endif %}
+        Votre navigateur ne peut pas lire cette vidéo.
+      </video>
+    </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'soumettre' %}" class="formulaire">
+    {% csrf_token %}
+
+    {% for bloc in blocs %}
+      <section class="groupe">
+        {% if bloc.groupe %}
+          {% if bloc.groupe.titre %}<h2 class="groupe-titre">{{ bloc.groupe.titre }}</h2>{% endif %}
+          {% if bloc.groupe.consigne %}<p class="groupe-consigne">{{ bloc.groupe.consigne|linebreaksbr }}</p>{% endif %}
+        {% endif %}
+
+        {% for q in bloc.questions %}
+          <fieldset class="question">
+            <legend>{{ q.libelle }}{% if q.obligatoire %} <span class="requis">*</span>{% endif %}</legend>
+            {% if q.aide %}<p class="aide">{{ q.aide }}</p>{% endif %}
+
+            {% if q.media %}
+              <div class="qmedia">
+                {% if q.media.type_media == "audio" %}
+                  <audio controls preload="metadata">
+                    <source src="{% url 'media_question' 'fichier' q.media.code %}">
+                    {% if q.media.vtt %}<track default kind="subtitles" srclang="fr" label="Français"
+                           src="{% url 'media_question' 'vtt' q.media.code %}">{% endif %}
+                  </audio>
+                {% else %}
+                  <video controls preload="metadata" playsinline>
+                    <source src="{% url 'media_question' 'fichier' q.media.code %}">
+                    {% if q.media.vtt %}<track default kind="subtitles" srclang="fr" label="Français"
+                           src="{% url 'media_question' 'vtt' q.media.code %}">{% endif %}
+                  </video>
+                {% endif %}
+              </div>
+            {% endif %}
+
+            {% if q.type == "echelle" %}
+              <div class="echelle">
+                <span class="borne">{{ q.label_min }}</span>
+                <div class="graduations">
+                  {% for v in q.plage %}
+                    <label class="grad">
+                      <input type="radio" name="q_{{ q.id }}" value="{{ v }}"
+                             {% if q.obligatoire %}required{% endif %}>
+                      <span>{{ v }}</span>
+                    </label>
+                  {% endfor %}
+                </div>
+                <span class="borne">{{ q.label_max }}</span>
+              </div>
+
+            {% elif q.type == "choix" %}
+              <div class="choix">
+                {% for c in q.choix.all %}
+                  <label class="option">
+                    <input type="{% if q.choix_multiple %}checkbox{% else %}radio{% endif %}"
+                           name="q_{{ q.id }}" value="{{ c.valeur }}"
+                           {% if q.obligatoire and not q.choix_multiple %}required{% endif %}>
+                    <span>{{ c.libelle }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+
+            {% else %}{# texte #}
+              <textarea name="q_{{ q.id }}" rows="3"
+                        {% if q.obligatoire %}required{% endif %}
+                        placeholder="Votre réponse…"></textarea>
+            {% endif %}
+          </fieldset>
+        {% endfor %}
+      </section>
+    {% endfor %}
+
+    <div class="actions">
+      <button type="submit" class="bouton">
+        {% if derniere_page %}Valider mes réponses{% else %}Continuer →{% endif %}
+      </button>
+    </div>
+  </form>
+
+  <style>
+    .lecteur { margin: 8px 0 36px; }
+    video, audio { width: 100%; border-radius: var(--rayon); display: block; }
+    video { background: #000; border: 1px solid var(--bord); }
+    audio { margin-top: 4px; }
+    .formulaire { display: flex; flex-direction: column; gap: 28px; }
+    section.groupe { display: flex; flex-direction: column; gap: 28px; }
+    .groupe-titre { font-size: 18px; font-weight: 600; margin: 0; }
+    .groupe-consigne { color: var(--texte-doux); margin: -16px 0 0; }
+    fieldset.question {
+      border: 0; padding: 0; margin: 0;
+      border-top: 1px solid var(--bord); padding-top: 24px;
+    }
+    legend { font-size: 16px; font-weight: 600; padding: 0; margin-bottom: 4px; }
+    .requis { color: var(--accent); }
+    .aide { font-size: 13px; margin: 0 0 14px; }
+    .qmedia { margin: 6px 0 16px; }
+    .echelle { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .borne { font-size: 12px; color: var(--texte-doux); flex: 0 0 auto; max-width: 110px; }
+    .graduations { display: flex; gap: 8px; flex: 1 1 auto; }
+    .grad { position: relative; flex: 1 1 0; text-align: center; cursor: pointer; }
+    .grad input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+    .grad span {
+      display: block; padding: 10px 0; border-radius: 8px;
+      border: 1px solid var(--bord); background: var(--surface);
+      font-size: 14px; transition: border-color .12s, background .12s;
+    }
+    .grad input:hover + span { border-color: var(--texte-doux); }
+    .grad input:checked + span { background: var(--accent-fonce); border-color: var(--accent); color: #fff; }
+    .grad input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .choix { display: flex; flex-direction: column; gap: 10px; }
+    .option {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; border: 1px solid var(--bord);
+      border-radius: var(--rayon); background: var(--surface); cursor: pointer;
+      transition: border-color .12s;
+    }
+    .option:hover { border-color: var(--texte-doux); }
+    .option:has(input:checked) { border-color: var(--accent); background: rgba(110,168,196,.08); }
+    .option input { accent-color: var(--accent); width: 18px; height: 18px; }
+    textarea {
+      width: 100%; background: var(--surface); color: var(--texte);
+      border: 1px solid var(--bord); border-radius: var(--rayon);
+      padding: 12px 14px; font: inherit; resize: vertical;
+    }
+    textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  </style>
+{% endblock %}

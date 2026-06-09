@@ -1,0 +1,7 @@
+{% extends "etude/base.html" %}
+{% block titre %}Fin{% endblock %}
+{% block contenu %}
+  <p class="eyebrow">{{ config.nom_etude }}</p>
+  <h1>Merci.</h1>
+  <div class="intro">{{ config.texte_remerciement|linebreaksbr }}</div>
+{% endblock %}

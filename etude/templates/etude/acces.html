@@ -1,0 +1,37 @@
+{% extends "etude/base.html" %}
+{% block titre %}Accès à l'étude{% endblock %}
+
+{% block contenu %}
+  <p class="eyebrow">{{ config.nom_etude }}</p>
+  <h1>Accès réservé</h1>
+  <p class="intro">
+    Cette étude est accessible sur invitation. Saisissez le code d'accès qui
+    vous a été communiqué pour continuer.
+  </p>
+
+  {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
+
+  <form method="post" class="acces">
+    {% csrf_token %}
+    <label for="code">Code d'accès</label>
+    <input type="password" name="code" id="code" autocomplete="off"
+           autocapitalize="off" spellcheck="false" required autofocus>
+    <div class="actions">
+      <button type="submit" class="bouton">Entrer</button>
+    </div>
+  </form>
+
+  <style>
+    form.acces { display: flex; flex-direction: column; gap: 8px; margin-top: 28px; max-width: 360px; }
+    form.acces label { font-size: 13px; color: var(--texte-doux); }
+    form.acces input {
+      background: var(--surface); color: var(--texte);
+      border: 1px solid var(--bord); border-radius: var(--rayon);
+      padding: 12px 14px; font: inherit; letter-spacing: 0.08em;
+    }
+    form.acces input:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent);
+    }
+    form.acces .actions { margin-top: 12px; }
+  </style>
+{% endblock %}
