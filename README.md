@@ -1,49 +1,50 @@
 # Outil d'étude — squelette Django
 
-Outil **neutre** de questionnaire sur une banque d'extraits vidéo/audio
-sous-titrés. Le nom de l'étude et tous les textes affichés sont **paramétrables**
-(modèle `Configuration`, éditable dans l'admin) pour cadrer l'étude selon les
-besoins. Tirage aléatoire pondéré, boucle « Continuer / Arrêter », questionnaire
-composé dans un éditeur visuel, export CSV, fichiers média protégés.
+Outil **neutre** de questionnaire. L'unité est le **groupe de questions** : on
+propose au participant des groupes non encore répondus, tant qu'il souhaite
+continuer. Chaque question porte son propre média audio/vidéo. Le nom de l'étude
+et tous les textes sont **paramétrables** dans l'admin.
+
+## Modèle
+
+```text
+Groupe (profil ou standard)         ← unité tirée par la boucle
+  └── Question (type, média, options, saut de page)
+        └── Choix (si type = choix)
+Configuration  ← textes + paramètres de déroulé (singleton)
+```
+
+- **Groupe profil** : posé **une seule fois** au début (âge, genre…), stocké sur
+  le participant (`ReponseProfil`).
+- **Groupe standard** : fait partie du **pool de tirage**. On tire un groupe non
+  encore répondu (aléatoire pondéré ou ordre fixe), le participant y répond, puis
+  **Continuer / Arrêter**, jusqu'à épuisement (ou `max_groupes`).
+- Un groupe peut être découpé en plusieurs **écrans** : cocher `saut de page`
+  sur une question fait apparaître un bouton **« Suivant »** avant elle.
 
 ## Ce qui est inclus
 
-- **Identité paramétrable** : `Configuration` (nom de l'étude, titre d'accueil,
-  texte de consentement, intro du profil, remerciement) — éditable dans l'admin,
-  rien n'est codé en dur.
-- **Modèles** : `Question`, `Choix`, `Groupe`, `Media`, `Enregistrement`,
-  `Participant`, `Jugement`, `Reponse`, `ReponseProfil`
-  (réponses en schéma clé-valeur → questions ajoutables sans migration).
-- **Admin Django** : ajout/modification des questions et de la banque vidéo sans coder,
-  consultation des jugements, et action **« Exporter en CSV »** qui repivote
-  automatiquement en format large (une ligne par jugement, une colonne par question).
-- **Accès participant** : deux modes, gérés dans l'admin, jamais exportés.
-  - **Code individuel** (un code = un participant) : resaisir le même code
-    (autre navigateur, plus tard) **reprend la même session**.
-  - **Lien collectif** (case « collectif ») : un lien `/acces/<code>/` à
-    diffuser largement ; **chaque visiteur** devient un nouveau participant.
-  Page `/acces/` pour saisir un code, ou lien direct `/acces/<code>/` (sans
-  saisie) qui marche pour les deux modes.
-- **Accès chercheur** : connexion Django native sur `/admin/login/`, habillée
-  à la palette de l'étude.
-- **Éditeur visuel** (`/editeur/`, réservé au staff) : composer le questionnaire
-  en **groupes** par glisser-déposer, gérer chaque question (type, options,
-  média), et choisir la **mise en page** (case « nouvelle page » par groupe).
-  Accessible depuis le lien en haut de l'admin. Sans dépendance externe.
-- **Portée des questions** : chaque question est soit **« par extrait »**
-  (rattachée à chaque jugement — les vraies évaluations), soit **« profil »**
-  (âge, genre… posées **une seule fois** après le consentement, stockées sur le
-  participant, pas sur un jugement). Réglable par question dans l'éditeur.
-- **Groupes & média par question** : les questions se rangent en groupes
-  (sections) ; chaque groupe peut commencer une nouvelle page ; chaque question
-  peut porter son propre média **audio ou vidéo** (modèle `Media`, distinct du
-  vivier de tirage). Le clip tiré reste le sujet principal, affiché en page 1.
-- **Parcours participant** : consentement → clip + questions (en groupes,
-  éventuellement sur plusieurs pages) → Continuer/Arrêter.
-- **Tirage pondéré** : `selection.py`. Poids = 1/(1+nb_evaluations), exclut les clips
-  déjà jugés par le participant → couverture équilibrée de la banque.
-- **Média protégé** : la vidéo et les sous-titres ne sont accessibles qu'à un
-  participant ayant un jugement en cours sur ce clip (voir « Déploiement »).
+- **Identité & déroulé paramétrables** : `Configuration` (nom, accueil,
+  consentement, intro profil, remerciement, **ordre aléatoire des groupes**,
+  **nombre max de groupes**) — éditable dans l'admin, rien n'est codé en dur.
+- **Modèles** : `Groupe`, `Question`, `Choix`, `Media`, `Participant`,
+  `Passage` (participant × groupe), `Reponse`, `ReponseProfil`, `CodeAcces`,
+  `Configuration` (réponses en schéma clé-valeur → questions ajoutables sans migration).
+- **Construction des questions** : formulaire d'admin Django (type, média,
+  options, échelle). L'**éditeur visuel** ne sert qu'à **agencer**.
+- **Éditeur visuel** (`/editeur/`, staff) : vue d'ensemble, **glisser-déposer**
+  des groupes et des questions, réglages de groupe (titre, consigne, portée,
+  inclure au tirage, actif) et bascule « saut de page » par question. Lien
+  « Modifier » → formulaire d'admin. Sans dépendance externe.
+- **Accès participant** : **code individuel** (un code = un participant, reprise
+  de session) ou **lien collectif** `/acces/<code>/` (chaque visiteur = un
+  participant). Codes gérés dans l'admin, jamais exportés.
+- **Tirage** : `selection.py`. Aléatoire pondéré (poids = 1/(1+nb_evaluations),
+  couverture équilibrée) ou ordre fixe, excluant les groupes déjà faits.
+- **Média par question** : audio ou vidéo (`Media`), servi protégé uniquement au
+  participant ayant un passage en cours sur le groupe de la question.
+- **Export CSV** : une ligne par `Passage`, colonnes profil (recopiées) puis une
+  colonne par question.
 
 ## Démarrage (développement)
 
@@ -63,56 +64,49 @@ par défaut.
 
 ### Données de démonstration (optionnel)
 
-`python seed.py` crée 3 questions (une de chaque type) et 3 clips d'exemple.
-À supprimer avant une vraie collecte.
+`python seed.py` crée un groupe profil + deux groupes standard (dont un sur deux
+écrans) et les codes `demo` / `ouvert`. À supprimer avant une vraie collecte.
 
-## Construire le questionnaire (éditeur visuel)
+## Construire et agencer le questionnaire
 
-**/editeur/** (lien en haut de l'admin) : interface glisser-déposer pour
-composer le questionnaire.
+**Construire une question** : dans **/admin → Questions** (formulaire complet :
+code, libellé, type, média, options/échelle, groupe). Le code sert d'en-tête de
+colonne à l'export. Décocher « active » la retire sans perdre les réponses.
 
-- **Groupes** : « + Groupe », réordonner par glisser-déposer, titre + consigne.
-  Cocher « commence une nouvelle page » pour scinder le questionnaire en pages.
-- **Questions** : « + Question » dans un groupe, glisser pour réordonner ou
-  déplacer entre groupes. « Éditer » ouvre le détail (code, libellé, type,
-  options de choix, échelle, média audio/vidéo, obligatoire/active).
-- Les réordonnancements s'enregistrent automatiquement ; le reste via
-  « Enregistrer ». Une question avec des réponses déjà collectées ne peut pas
-  être supprimée (la désactiver à la place).
-- Bouton « Aperçu participant » pour voir le rendu.
+**Médias** (Éditeur → Médias) : **téléverser** un fichier vidéo/audio (jusqu'à
+1 Go) — il est stocké sous `media/` sur le serveur et le Média est créé
+automatiquement (type détecté par l'extension). Option avancée : référencer un
+fichier déjà déposé (par SFTP) via son chemin relatif. Les fichiers sont servis
+de façon protégée, jamais exposés publiquement.
 
-## Ajouter du contenu (sans coder)
+> En production derrière Nginx, autoriser les gros envois :
+> `client_max_body_size 1024m;` (sinon l'upload est refusé au-delà de ~1 Mo).
 
-Tout se fait dans **/admin** :
+**Agencer** : dans **/editeur/** (lien en haut de l'admin), interface
+glisser-déposer en lecture/agencement :
 
-1. **Questions** : code (sert d'en-tête de colonne à l'export), libellé, type
-   (échelle / choix / texte), bornes ou options, ordre, obligatoire, active.
-   Décocher « active » retire une question sans perdre les réponses passées.
-2. **Enregistrements** (clips sujets, vivier de tirage) : déposer les fichiers
-   dans `media/videos/`, puis créer un enregistrement avec le chemin relatif
-   (`videos/clip_042.mp4`) et son `.vtt`. Le compteur d'évaluations se met à
-   jour seul.
-2 bis. **Médias de question** (audio/vidéo attachés à une question) : déposer
-   sous `media/` (ex. `media/medias/`), créer un **Média** (admin ou éditeur)
-   avec son chemin relatif et son type (audio/vidéo), puis le sélectionner dans
-   l'éditeur. Bibliothèque distincte des clips → jamais tirée comme sujet.
-3. **Codes d'accès** : un code par participant invité. Bouton **« Générer 20
-   codes »** sur la liste, ou ajout manuel (laisser le champ vide → code
-   généré). Distribuer un code par personne. Décocher « actif » révoque l'accès.
-   La colonne « participant » montre à qui chaque code a été lié.
-   - **Lien à partager à tous** : créer un code, cocher **« collectif »**, et
-     diffuser le lien affiché dans la colonne « Lien à partager »
-     (`/acces/<code>/`). Chaque visiteur devient un participant distinct.
+- **+ Groupe**, réordonner les groupes (poignée ⠿), régler chaque groupe :
+  titre, consigne, **portée** (profil / standard), **inclure dans le tirage**,
+  actif.
+- Glisser les questions pour les **réordonner ou les déplacer** entre groupes
+  (enregistré automatiquement). Cocher **« saut de page »** pour qu'une question
+  commence un nouvel écran. « Modifier » ouvre son formulaire d'admin.
+- **Paramètres** (lien en haut) → `Configuration` : ordre aléatoire des groupes,
+  nombre max de groupes par participant.
+
+**Codes d'accès** : **/admin → Codes d'accès**. Bouton **« Générer 20 codes »**,
+ou ajout manuel (code vide → généré). Décocher « actif » révoque l'accès. Pour un
+**lien collectif**, cocher « collectif » et diffuser le lien de la colonne
+« Lien à partager ».
 
 ## Export des résultats
 
-Admin → Jugements → sélectionner → action **« Exporter en CSV »**.
-Format large directement exploitable en R / pandas : `id_jugement`,
-`jeton_participant`, `consentement`, `code_enregistrement`, `categorie`,
-`debut`, `fin`, puis une colonne par question **profil** (recopiée sur chaque
-ligne du participant), puis une colonne par question **par extrait** (par
-`code`). Toute question ajoutée devient automatiquement une colonne — aucun
-réglage par question, le schéma clé-valeur s'en charge.
+Admin → **Passages** → sélectionner → action **« Exporter en CSV »**.
+Format large directement exploitable en R / pandas : `id_passage`,
+`jeton_participant`, `consentement`, `code_groupe`, `debut`, `fin`, puis une
+colonne par question **profil** (recopiée sur chaque ligne du participant), puis
+une colonne par question. Toute question ajoutée devient automatiquement une
+colonne — le schéma clé-valeur s'en charge.
 
 ## Déploiement (production)
 
@@ -122,9 +116,8 @@ réglage par question, le schéma clé-valeur s'en charge.
    exposer les fichiers statiques de l'admin : `python manage.py collectstatic`
    puis servir `STATIC_ROOT` via Nginx (les médias, eux, restent protégés).
 3. **Média protégé (X-Accel-Redirect)** — Django vérifie les droits puis délègue
-   l'envoi du fichier à Nginx, pour les clips sujets **comme** pour les médias
-   de question (tous sous `MEDIA_ROOT`). Le dossier média n'est PAS exposé
-   publiquement. Ajouter dans la config Nginx :
+   l'envoi du fichier à Nginx (médias de question, sous `MEDIA_ROOT`). Le dossier
+   média n'est PAS exposé publiquement. Ajouter dans la config Nginx :
 
    ```nginx
    # Interne : seul Django peut y rediriger, pas le public.
@@ -135,7 +128,7 @@ réglage par question, le schéma clé-valeur s'en charge.
    ```
 
    En développement (`DEBUG=True`) il n'y a pas de Nginx : Django sert le
-   fichier directement. Le basculement est automatique (voir `views.media_protege`).
+   fichier directement. Le basculement est automatique (voir `views.media_question`).
 
 4. **Sauvegardes** : `db.sqlite3` contient toutes les données — sauvegarder
    régulièrement. Migrer vers PostgreSQL si forte charge simultanée.
@@ -143,5 +136,5 @@ réglage par question, le schéma clé-valeur s'en charge.
 ## Pistes d'extension
 
 - Mesurer le temps de visionnage (champs début/fin d'écoute côté JS).
-- Limiter le nombre de jugements par participant.
+- Pagination du groupe de profil (aujourd'hui sur un seul écran).
 - `django-import-export` pour des boutons Export/Import enrichis dans l'admin.

@@ -1,28 +1,36 @@
 """
-Éditeur visuel du questionnaire (réservé au staff).
+Éditeur visuel du questionnaire (réservé au staff) — AGENCEMENT uniquement.
 
-La page `editeur()` rend l'interface ; les autres vues sont des points d'API
-JSON appelés en fetch() par le front :
-  - api_groupe              : créer / modifier un groupe
-  - api_groupe_supprimer    : supprimer un groupe (ses questions repassent « sans groupe »)
-  - api_question            : créer / modifier une question (+ ses choix)
-  - api_question_supprimer  : supprimer une question (refusé si des réponses existent)
-  - api_reordonner          : enregistrer l'ordre (drag & drop) des groupes et questions
+La construction d'une question (type, média, options, échelle...) se fait dans
+le formulaire d'admin Django. L'éditeur sert à :
+  - voir l'ensemble du questionnaire d'un coup ;
+  - glisser-déposer groupes et questions (ordre, déplacement entre groupes) ;
+  - régler les paramètres de groupe (titre, consigne, portée, tirage, actif) ;
+  - basculer le « saut de page » (bouton Suivant) d'une question.
 
-Toutes les écritures passent par l'admin Django pour l'authentification
-(staff_member_required) et sont protégées CSRF.
+API JSON appelée en fetch() :
+  api_groupe / api_groupe_supprimer / api_question (toggles) /
+  api_question_supprimer / api_reordonner.
 """
 from __future__ import annotations
 
 import json
+import os
 
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.core.files.storage import FileSystemStorage
 from django.db.models import ProtectedError
-from django.http import JsonResponse, Http404
-from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.utils.text import get_valid_filename, slugify
 from django.views.decorators.http import require_POST
 
-from .models import Groupe, Question, Choix, Media, Reponse
+from .forms import (
+    QuestionForm, MediaForm, MediaUploadForm, ConfigurationForm,
+    ChoixFormSet, SousQuestionFormSet,
+)
+from .models import Groupe, Question, Media, Reponse, ReponseProfil, Configuration
 
 
 def _serialiser_question(q):
@@ -30,32 +38,17 @@ def _serialiser_question(q):
         "id": q.id,
         "code": q.code,
         "libelle": q.libelle,
-        "aide": q.aide,
-        "type": q.type,
-        "portee": q.portee,
-        "obligatoire": q.obligatoire,
+        "type": q.get_type_display(),
+        "media": q.media.code if q.media_id else None,
+        "saut_de_page": q.saut_de_page,
         "active": q.active,
-        "ordre": q.ordre,
         "groupe_id": q.groupe_id,
-        "min_val": q.min_val,
-        "max_val": q.max_val,
-        "label_min": q.label_min,
-        "label_max": q.label_max,
-        "choix_multiple": q.choix_multiple,
-        "media_id": q.media_id,
-        "choix": [
-            {"id": c.id, "valeur": c.valeur, "libelle": c.libelle, "ordre": c.ordre}
-            for c in q.choix.all()
-        ],
     }
 
 
 def _donnees():
-    """Structure complète du questionnaire pour l'initialisation du front."""
     questions = list(
-        Question.objects.select_related("groupe")
-        .prefetch_related("choix")
-        .order_by("ordre", "id")
+        Question.objects.select_related("groupe", "media").order_by("ordre", "id")
     )
     groupes = list(Groupe.objects.order_by("ordre", "id"))
     return {
@@ -64,21 +57,16 @@ def _donnees():
                 "id": g.id,
                 "titre": g.titre,
                 "consigne": g.consigne,
-                "nouvelle_page": g.nouvelle_page,
+                "portee": g.portee,
+                "inclure_tirage": g.inclure_tirage,
                 "active": g.active,
+                "media_id": g.media_id,
                 "questions": [_serialiser_question(q) for q in questions if q.groupe_id == g.id],
             }
             for g in groupes
         ],
         "sans_groupe": [_serialiser_question(q) for q in questions if q.groupe_id is None],
-        "medias": [
-            {"id": m.id, "code": m.code, "type": m.type_media} for m in Media.objects.all()
-        ],
-        "types_question": [
-            {"valeur": Question.ECHELLE, "libelle": "Échelle"},
-            {"valeur": Question.CHOIX, "libelle": "Choix"},
-            {"valeur": Question.TEXTE, "libelle": "Texte"},
-        ],
+        "medias": [{"id": m.id, "code": m.code, "type": m.type_media} for m in Media.objects.all()],
     }
 
 
@@ -102,16 +90,20 @@ def api_groupe(request):
     if gid:
         groupe = get_object_or_404(Groupe, pk=gid)
     else:
-        # Nouveau groupe : placé en fin de liste.
         dernier = Groupe.objects.order_by("-ordre").first()
         groupe = Groupe(ordre=(dernier.ordre + 1) if dernier else 0)
 
-    groupe.titre = d.get("titre", groupe.titre)
-    groupe.consigne = d.get("consigne", groupe.consigne)
-    if "nouvelle_page" in d:
-        groupe.nouvelle_page = bool(d["nouvelle_page"])
-    if "active" in d:
-        groupe.active = bool(d["active"])
+    if "titre" in d:
+        groupe.titre = d["titre"]
+    if "consigne" in d:
+        groupe.consigne = d["consigne"]
+    if "portee" in d and d["portee"] in (Groupe.PROFIL, Groupe.STANDARD):
+        groupe.portee = d["portee"]
+    if "media_id" in d:
+        groupe.media_id = d["media_id"] or None
+    for champ in ("inclure_tirage", "active"):
+        if champ in d:
+            setattr(groupe, champ, bool(d[champ]))
     groupe.save()
     return JsonResponse({"id": groupe.id})
 
@@ -125,76 +117,16 @@ def api_groupe_supprimer(request, gid):
     return JsonResponse({"ok": True})
 
 
-def _synchroniser_choix(question, choix_payload):
-    """Met à jour les Choix d'une question à partir du payload (création/màj/suppression)."""
-    if choix_payload is None:
-        return
-    vus = set()
-    for i, c in enumerate(choix_payload):
-        cid = c.get("id")
-        valeur = (c.get("valeur") or "").strip()
-        libelle = (c.get("libelle") or "").strip()
-        if not (valeur or libelle):
-            continue
-        if cid:
-            obj = Choix.objects.filter(pk=cid, question=question).first()
-            if not obj:
-                continue
-        else:
-            obj = Choix(question=question)
-        obj.valeur = valeur or libelle
-        obj.libelle = libelle or valeur
-        obj.ordre = i
-        obj.save()
-        vus.add(obj.id)
-    # Supprime les choix retirés côté éditeur.
-    question.choix.exclude(id__in=vus).delete()
-
-
 @staff_member_required
 @require_POST
 def api_question(request):
+    """Bascules légères depuis l'éditeur : saut_de_page, active."""
     d = _corps_json(request)
-    qid = d.get("id")
-    if qid:
-        question = get_object_or_404(Question, pk=qid)
-    else:
-        groupe_id = d.get("groupe_id")
-        dernier = Question.objects.filter(groupe_id=groupe_id).order_by("-ordre").first()
-        question = Question(
-            groupe_id=groupe_id,
-            ordre=(dernier.ordre + 1) if dernier else 0,
-            code=d.get("code") or _code_libre(),
-            libelle=d.get("libelle") or "Nouvelle question",
-        )
-
-    if "groupe_id" in d:
-        question.groupe_id = d["groupe_id"]
-    for champ in ("code", "libelle", "aide", "type", "portee", "label_min", "label_max"):
-        if champ in d and d[champ] is not None:
-            setattr(question, champ, d[champ])
-    for champ in ("obligatoire", "active", "choix_multiple"):
+    question = get_object_or_404(Question, pk=d.get("id"))
+    for champ in ("saut_de_page", "active"):
         if champ in d:
             setattr(question, champ, bool(d[champ]))
-    for champ in ("min_val", "max_val"):
-        if champ in d:
-            val = d[champ]
-            if val in (None, ""):
-                setattr(question, champ, None)
-            else:
-                try:
-                    setattr(question, champ, int(val))
-                except (TypeError, ValueError):
-                    return JsonResponse({"erreur": f"« {champ} » doit être un entier."}, status=400)
-    if "media_id" in d:
-        question.media_id = d["media_id"] or None
-
-    try:
-        question.save()
-    except Exception as exc:  # ex. code non unique
-        return JsonResponse({"erreur": f"Enregistrement impossible : {exc}"}, status=400)
-
-    _synchroniser_choix(question, d.get("choix"))
+    question.save(update_fields=["saut_de_page", "active"])
     return JsonResponse({"id": question.id})
 
 
@@ -202,7 +134,8 @@ def api_question(request):
 @require_POST
 def api_question_supprimer(request, qid):
     question = get_object_or_404(Question, pk=qid)
-    if Reponse.objects.filter(question=question).exists():
+    if (Reponse.objects.filter(question=question).exists()
+            or ReponseProfil.objects.filter(question=question).exists()):
         return JsonResponse(
             {"erreur": "Des réponses existent déjà pour cette question : "
                        "décochez « active » plutôt que de la supprimer."},
@@ -220,10 +153,7 @@ def api_question_supprimer(request, qid):
 def api_reordonner(request):
     """
     Enregistre l'ordre issu du drag & drop.
-    Payload : {
-      "groupes": [{"id": gid, "questions": [qid, ...]}, ...],
-      "sans_groupe": [qid, ...]
-    }
+    Payload : {"groupes": [{"id", "questions": [qid,...]}, ...], "sans_groupe": [qid,...]}
     """
     d = _corps_json(request)
     for i, g in enumerate(d.get("groupes", [])):
@@ -235,9 +165,117 @@ def api_reordonner(request):
     return JsonResponse({"ok": True})
 
 
-def _code_libre():
-    """Génère un code de question unique du type q_1, q_2..."""
-    i = Question.objects.count() + 1
-    while Question.objects.filter(code=f"q_{i}").exists():
-        i += 1
-    return f"q_{i}"
+# ---------------------------------------------------------------------------
+# Construction dans l'interface du site (plus de passage par /admin).
+# ---------------------------------------------------------------------------
+@staff_member_required
+def question_form(request, qid=None):
+    """Création / édition d'une question (champs + choix + sous-questions)."""
+    instance = get_object_or_404(Question, pk=qid) if qid else None
+
+    if request.method == "POST":
+        form = QuestionForm(request.POST, instance=instance)
+        choix = ChoixFormSet(request.POST, instance=instance, prefix="choix")
+        sousq = SousQuestionFormSet(request.POST, instance=instance, prefix="sousq")
+        if form.is_valid():
+            question = form.save(commit=False)
+            if instance is None:
+                dernier = Question.objects.filter(groupe=question.groupe).order_by("-ordre").first()
+                question.ordre = (dernier.ordre + 1) if dernier else 0
+            # On rattache les formsets à l'instance (créée ou existante).
+            choix = ChoixFormSet(request.POST, instance=question, prefix="choix")
+            sousq = SousQuestionFormSet(request.POST, instance=question, prefix="sousq")
+            if choix.is_valid() and sousq.is_valid():
+                question.save()
+                choix.instance = question
+                sousq.instance = question
+                choix.save()
+                sousq.save()
+                messages.success(request, "Question enregistrée.")
+                return redirect("editeur")
+    else:
+        groupe_id = request.GET.get("groupe")
+        form = QuestionForm(instance=instance, initial=({"groupe": groupe_id} if groupe_id else None))
+        choix = ChoixFormSet(instance=instance, prefix="choix")
+        sousq = SousQuestionFormSet(instance=instance, prefix="sousq")
+
+    return render(request, "etude/editeur_question.html", {
+        "form": form, "choix": choix, "sousq": sousq, "question": instance,
+    })
+
+
+_EXT_AUDIO = {".mp3", ".wav", ".ogg", ".oga", ".m4a", ".aac", ".flac"}
+
+
+def _type_media(nom):
+    return Media.AUDIO if os.path.splitext(nom)[1].lower() in _EXT_AUDIO else Media.VIDEO
+
+
+def _code_unique(base):
+    base = slugify(base)[:60] or "media"
+    code, i = base, 2
+    while Media.objects.filter(code=code).exists():
+        code, i = f"{base}-{i}", i + 1
+    return code
+
+
+def _creer_media_depuis_upload(data):
+    """Enregistre le(s) fichier(s) sous MEDIA_ROOT et crée le Média."""
+    storage = FileSystemStorage()  # lit settings.MEDIA_ROOT à l'appel
+    f = data["fichier"]
+    type_media = _type_media(f.name)
+    dossier = "videos" if type_media == Media.VIDEO else "audios"
+    chemin = storage.save(f"{dossier}/{get_valid_filename(f.name)}", f).replace("\\", "/")
+
+    vtt = ""
+    if data.get("vtt"):
+        vtt = storage.save(f"soustitres/{get_valid_filename(data['vtt'].name)}", data["vtt"]).replace("\\", "/")
+
+    base = data.get("code") or os.path.splitext(os.path.basename(f.name))[0]
+    Media.objects.create(
+        code=_code_unique(base), titre=data.get("titre", ""),
+        type_media=type_media, fichier=chemin, vtt=vtt,
+    )
+
+
+@staff_member_required
+def medias(request):
+    """Bibliothèque de médias : téléversement OU référence par chemin + liste."""
+    upload = MediaUploadForm()
+    form = MediaForm()
+    if request.method == "POST":
+        if "televerser" in request.POST:
+            upload = MediaUploadForm(request.POST, request.FILES)
+            if upload.is_valid():
+                _creer_media_depuis_upload(upload.cleaned_data)
+                messages.success(request, "Média téléversé.")
+                return redirect("editeur_medias")
+        else:
+            form = MediaForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Média ajouté.")
+                return redirect("editeur_medias")
+    return render(request, "etude/editeur_medias.html", {
+        "upload": upload, "form": form, "medias": Media.objects.all(),
+    })
+
+
+@staff_member_required
+@require_POST
+def media_supprimer(request, mid):
+    get_object_or_404(Media, pk=mid).delete()  # SET_NULL sur les références
+    messages.success(request, "Média supprimé.")
+    return redirect("editeur_medias")
+
+
+@staff_member_required
+def parametres(request):
+    """Paramètres de l'étude (textes + déroulé)."""
+    cfg = Configuration.charger()
+    form = ConfigurationForm(request.POST or None, instance=cfg)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Paramètres enregistrés.")
+        return redirect("editeur_parametres")
+    return render(request, "etude/editeur_parametres.html", {"form": form})

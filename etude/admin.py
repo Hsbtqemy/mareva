@@ -1,9 +1,13 @@
 """
-Admin Django : gestion du contenu (questions, banque vidéo) et des données.
+Admin Django : construction des questions, agencement, données et export.
 
-Point clé : l'action 'Exporter en CSV' sur les Jugements repivote le stockage
-clé-valeur (table Reponse) en format large : une ligne par jugement, une
-colonne par question (en utilisant Question.code comme en-tête).
+La construction d'une question (type, média, options, échelle) se fait ici
+(formulaire standard + ChoixInline) ; l'agencement (ordre, groupes, pages) se
+fait dans l'éditeur visuel (/editeur/).
+
+L'action « Exporter en CSV » sur les Passages repivote le stockage clé-valeur
+en format large : une ligne par passage (participant × groupe), colonnes profil
+(recopiées) puis colonnes des questions standard.
 """
 import csv
 import secrets
@@ -14,20 +18,29 @@ from django.shortcuts import redirect
 from django.urls import path, reverse
 
 from .models import (
-    Question, Choix, Groupe, Media, Enregistrement,
-    Participant, Jugement, Reponse, ReponseProfil, CodeAcces, Configuration,
+    Question, Choix, SousQuestion, Groupe, Media,
+    Participant, Passage, Reponse, ReponseProfil, CodeAcces, Configuration,
 )
 
 
 class ChoixInline(admin.TabularInline):
     model = Choix
     extra = 3
+    fields = ("ordre", "valeur", "libelle", "description")
+
+
+class SousQuestionInline(admin.TabularInline):
+    model = SousQuestion
+    extra = 0
+    fields = ("ordre", "code", "libelle")
 
 
 @admin.register(Groupe)
 class GroupeAdmin(admin.ModelAdmin):
-    list_display = ("titre", "ordre", "nouvelle_page", "active")
-    list_editable = ("ordre", "nouvelle_page", "active")
+    list_display = ("titre", "portee", "media", "inclure_tirage", "ordre", "active", "nb_evaluations")
+    list_editable = ("portee", "inclure_tirage", "ordre", "active")
+    list_filter = ("portee", "active")
+    readonly_fields = ("nb_evaluations",)
 
 
 @admin.register(Media)
@@ -39,21 +52,22 @@ class MediaAdmin(admin.ModelAdmin):
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ("code", "libelle", "type", "portee", "groupe", "media", "obligatoire", "ordre", "active")
+    list_display = ("code", "libelle", "type", "groupe", "media", "obligatoire", "saut_de_page", "ordre", "active")
     list_editable = ("ordre", "active")
-    list_filter = ("portee", "type", "active", "groupe")
+    list_filter = ("type", "active", "groupe")
     list_select_related = ("groupe", "media")
     search_fields = ("code", "libelle")
-    inlines = [ChoixInline]
-
-
-@admin.register(Enregistrement)
-class EnregistrementAdmin(admin.ModelAdmin):
-    list_display = ("code", "categorie", "nb_evaluations", "actif")
-    list_editable = ("actif",)
-    list_filter = ("categorie", "actif")
-    search_fields = ("code", "titre")
-    readonly_fields = ("nb_evaluations",)
+    inlines = [ChoixInline, SousQuestionInline]
+    fieldsets = (
+        (None, {"fields": ("code", "libelle", "type", "aide", "groupe", "media")}),
+        ("Options d'affichage", {"fields": ("obligatoire", "saut_de_page", "melanger", "ordre", "active")}),
+        ("Échelle", {"fields": ("min_val", "max_val", "label_min", "label_max"), "classes": ("collapse",)}),
+        ("Texte (longueur)", {"fields": ("longueur",), "classes": ("collapse",)}),
+        ("Choix / cartes", {"fields": ("choix_multiple",), "classes": ("collapse",),
+                            "description": "Les options se règlent dans « Choix » ci-dessous. "
+                                           "Pour une matrice : « Choix » = catégories (colonnes), "
+                                           "« Sous-questions » = lignes."}),
+    )
 
 
 class ReponseInline(admin.TabularInline):
@@ -63,63 +77,75 @@ class ReponseInline(admin.TabularInline):
     can_delete = False
 
 
-@admin.register(Jugement)
-class JugementAdmin(admin.ModelAdmin):
-    list_display = ("id", "participant", "enregistrement", "debut", "fin")
-    list_filter = ("enregistrement__categorie", "debut")
-    search_fields = ("participant__jeton", "enregistrement__code")
+@admin.register(Passage)
+class PassageAdmin(admin.ModelAdmin):
+    list_display = ("id", "participant", "groupe", "debut", "fin")
+    list_filter = ("groupe", "debut")
+    search_fields = ("participant__jeton", "groupe__titre")
     inlines = [ReponseInline]
     actions = ["exporter_csv"]
 
+    @staticmethod
+    def _colonnes(questions):
+        """Une colonne par question, sauf matrice → une colonne par sous-question (code)."""
+        cols = []
+        for q in questions:
+            if q.type == Question.MATRICE:
+                cols.extend(sq.code for sq in q.sous_questions.all())
+            else:
+                cols.append(q.code)
+        return cols
+
+    @staticmethod
+    def _par_code(reponses):
+        """Réponses indexées par code de colonne (sous-question si matrice, sinon question)."""
+        d = {}
+        for r in reponses:
+            sq = getattr(r, "sous_question", None)
+            d[sq.code if sq else r.question.code] = r.valeur
+        return d
+
     @admin.action(description="Exporter en CSV (format large, repivoté)")
     def exporter_csv(self, request, queryset):
-        # Deux séries de colonnes, dans l'ordre du questionnaire :
-        #   - profil    : réponses du participant (recopiées sur chaque ligne)
-        #   - par extrait : réponses propres au jugement
-        toutes = Question.objects.order_by("groupe__ordre", "ordre", "id")
-        codes_profil = [q.code for q in toutes if q.portee == Question.PROFIL]
-        codes_extrait = [q.code for q in toutes if q.portee != Question.PROFIL]
+        toutes = list(
+            Question.objects.select_related("groupe").prefetch_related("sous_questions")
+            .order_by("groupe__ordre", "ordre", "id")
+        )
+        q_profil = [q for q in toutes if q.groupe and q.groupe.portee == Groupe.PROFIL]
+        q_standard = [q for q in toutes if not (q.groupe and q.groupe.portee == Groupe.PROFIL)]
+        cols_profil = self._colonnes(q_profil)
+        cols_standard = self._colonnes(q_standard)
 
         reponse = HttpResponse(content_type="text/csv")
-        reponse["Content-Disposition"] = 'attachment; filename="jugements.csv"'
+        reponse["Content-Disposition"] = 'attachment; filename="passages.csv"'
         writer = csv.writer(reponse)
+        writer.writerow([
+            "id_passage", "jeton_participant", "consentement",
+            "code_groupe", "debut", "fin",
+        ] + cols_profil + cols_standard)
 
-        entete = [
-            "id_jugement", "jeton_participant", "consentement",
-            "code_enregistrement", "categorie", "debut", "fin",
-        ] + codes_profil + codes_extrait
-        writer.writerow(entete)
-
-        # Pré-charge réponses d'extrait ET réponses de profil pour éviter N+1.
-        queryset = queryset.select_related("participant", "enregistrement").prefetch_related(
-            "reponses__question", "participant__reponses_profil__question",
+        queryset = queryset.select_related("participant", "groupe").prefetch_related(
+            "reponses__question", "reponses__sous_question",
+            "participant__reponses_profil__question",
         )
-
-        for j in queryset:
-            par_extrait = {r.question.code: r.valeur for r in j.reponses.all()}
-            par_profil = {r.question.code: r.valeur for r in j.participant.reponses_profil.all()}
+        for p in queryset:
+            par_reponse = self._par_code(p.reponses.all())
+            par_profil = self._par_code(p.participant.reponses_profil.all())
             ligne = [
-                j.id,
-                j.participant.jeton,
-                j.participant.consentement,
-                j.enregistrement.code,
-                j.enregistrement.categorie,
-                j.debut.isoformat(),
-                j.fin.isoformat() if j.fin else "",
-            ] + [par_profil.get(c, "") for c in codes_profil] \
-              + [par_extrait.get(c, "") for c in codes_extrait]
+                p.id, p.participant.jeton, p.participant.consentement,
+                p.groupe.titre or p.groupe_id,
+                p.debut.isoformat(), p.fin.isoformat() if p.fin else "",
+            ] + [par_profil.get(c, "") for c in cols_profil] \
+              + [par_reponse.get(c, "") for c in cols_standard]
             writer.writerow(ligne)
-
         return reponse
 
 
 @admin.register(CodeAcces)
 class CodeAccesAdmin(admin.ModelAdmin):
     """
-    Gestion des codes d'accès individuels. Bouton « Générer des codes » sur la
-    liste (voir templates/admin/etude/codeacces/change_list.html) pour créer un
-    lot d'un coup, sans coder. Ajout manuel possible aussi : laisser le champ
-    code vide le fait générer automatiquement.
+    Codes d'accès individuels ou liens collectifs. Bouton « Générer 20 codes »
+    sur la liste ; ajout manuel possible (code vide → généré automatiquement).
     """
     list_display = ("code", "collectif", "lien", "note", "actif", "participant", "cree_le")
     list_editable = ("collectif", "actif")
@@ -136,20 +162,13 @@ class CodeAccesAdmin(admin.ModelAdmin):
 
     def get_urls(self):
         custom = [
-            path(
-                "generer/",
-                self.admin_site.admin_view(self.generer),
-                name="etude_codeacces_generer",
-            ),
+            path("generer/", self.admin_site.admin_view(self.generer), name="etude_codeacces_generer"),
         ]
         return custom + super().get_urls()
 
     def generer(self, request):
-        """Crée un lot de 20 codes aléatoires (uniques)."""
         n = 20
-        CodeAcces.objects.bulk_create(
-            [CodeAcces(code=secrets.token_urlsafe(6)) for _ in range(n)]
-        )
+        CodeAcces.objects.bulk_create([CodeAcces(code=secrets.token_urlsafe(6)) for _ in range(n)])
         self.message_user(request, f"{n} codes d'accès générés.", messages.SUCCESS)
         return redirect("admin:etude_codeacces_changelist")
 
@@ -169,18 +188,16 @@ class ParticipantAdmin(admin.ModelAdmin):
 
 @admin.register(Configuration)
 class ConfigurationAdmin(admin.ModelAdmin):
-    """Configuration unique de l'étude (textes affichés, nom...)."""
+    """Configuration unique de l'étude : textes affichés et paramètres de déroulé."""
 
     def has_add_permission(self, request):
-        # Singleton : pas d'ajout si une configuration existe déjà.
         return not Configuration.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
         return False
 
 
-# En-têtes neutres ; l'affichage réel reprend le nom de l'étude défini en
-# configuration (voir templates/admin/base_site.html).
+# En-têtes neutres ; l'affichage reprend le nom de l'étude (base_site.html).
 admin.site.site_header = "Administration"
 admin.site.site_title = "Administration"
 admin.site.index_title = "Gestion de l'étude"

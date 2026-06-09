@@ -1,0 +1,82 @@
+{# Styles partagés pour le rendu des questions (tache + profil). #}
+<style>
+  video, audio { width: 100%; border-radius: var(--rayon); display: block; }
+  video { background: #000; border: 1px solid var(--bord); }
+  audio { margin-top: 4px; }
+
+  /* Deux volets : vidéo collée à gauche, questions à droite. */
+  .tache.deux-volets { display: grid; grid-template-columns: minmax(280px, 42%) 1fr; gap: 32px; align-items: start; }
+  .volet-video { position: sticky; top: 24px; }
+  @media (max-width: 720px) {
+    .tache.deux-volets { grid-template-columns: 1fr; }
+    .volet-video { position: static; }
+  }
+
+  .formulaire { display: flex; flex-direction: column; gap: 28px; margin-top: 8px; }
+  .flux { display: flex; flex-direction: column; }
+  .ecran { display: flex; flex-direction: column; gap: 28px; }
+  .nav-ecrans { display: flex; align-items: center; gap: 14px; margin-top: 28px; }
+  .compteur { font-size: 12px; color: var(--texte-doux); margin-left: auto; }
+  .nav-ecrans .compteur + .bouton, .nav-ecrans .bouton:last-child { margin-left: 0; }
+
+  .section-titre { font-size: 18px; font-weight: 600; margin: 8px 0 0; }
+  .section-consigne { color: var(--texte-doux); margin: 4px 0 0; }
+  fieldset.question { border: 0; padding: 0; margin: 0; border-top: 1px solid var(--bord); padding-top: 24px; }
+  legend { font-size: 16px; font-weight: 600; padding: 0; margin-bottom: 4px; }
+  .requis { color: var(--accent); }
+  .aide { font-size: 13px; margin: 0 0 14px; color: var(--texte-doux); }
+  .qmedia { margin: 6px 0 16px; }
+
+  /* Échelle */
+  .echelle { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .borne { font-size: 12px; color: var(--texte-doux); flex: 0 0 auto; max-width: 110px; }
+  .graduations { display: flex; gap: 8px; flex: 1 1 auto; }
+  .grad { position: relative; flex: 1 1 0; text-align: center; cursor: pointer; }
+  .grad input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .grad span { display: block; padding: 10px 0; border-radius: 8px; border: 1px solid var(--bord);
+    background: var(--surface); font-size: 14px; transition: border-color .12s, background .12s; }
+  .grad input:hover + span { border-color: var(--texte-doux); }
+  .grad input:checked + span { background: var(--accent-fonce); border-color: var(--accent); color: #fff; }
+  .grad input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Choix simples */
+  .choix { display: flex; flex-direction: column; gap: 10px; }
+  .option { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--bord);
+    border-radius: var(--rayon); background: var(--surface); cursor: pointer; transition: border-color .12s; }
+  .option:hover { border-color: var(--texte-doux); }
+  .option:has(input:checked) { border-color: var(--accent); background: rgba(110,168,196,.08); }
+  .option input { accent-color: var(--accent); width: 18px; height: 18px; }
+
+  /* Cartes : sélection soignée (titre + détail) */
+  .cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .carte { position: relative; cursor: pointer; }
+  .carte input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .carte-corps { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; height: 100%;
+    border: 1px solid var(--bord); border-radius: var(--rayon); background: var(--surface); transition: border-color .12s, background .12s; }
+  .carte-titre { font-weight: 600; }
+  .carte-desc { font-size: 13px; color: var(--texte-doux); }
+  .carte input:hover + .carte-corps { border-color: var(--texte-doux); }
+  .carte input:checked + .carte-corps { border-color: var(--accent); background: rgba(110,168,196,.10); }
+  .carte input:focus-visible + .carte-corps { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Matrice */
+  .matrice-wrap { overflow-x: auto; }
+  table.matrice { border-collapse: collapse; width: 100%; font-size: 14px; }
+  table.matrice th, table.matrice td { padding: 8px 10px; text-align: center; border-top: 1px solid var(--bord); }
+  table.matrice thead th { font-weight: 600; color: var(--texte-doux); font-size: 12px; }
+  table.matrice th.ligne { text-align: left; font-weight: 500; white-space: nowrap; }
+  table.matrice tbody tr:hover { background: var(--surface); }
+  .radio-cell input { accent-color: var(--accent); width: 18px; height: 18px; cursor: pointer; }
+
+  /* Drag & drop (classement) */
+  .dd-liste { list-style: none; counter-reset: rang; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .dd-item { counter-increment: rang; display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    border: 1px solid var(--bord); border-radius: var(--rayon); background: var(--surface); cursor: grab; }
+  .dd-item::before { content: counter(rang); font-size: 12px; color: var(--texte-doux); min-width: 16px; }
+  .dd-item .poignee { color: var(--texte-doux); }
+  .dd-item.dragging { opacity: .4; }
+
+  textarea { width: 100%; background: var(--surface); color: var(--texte); border: 1px solid var(--bord);
+    border-radius: var(--rayon); padding: 12px 14px; font: inherit; resize: vertical; }
+  textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+</style>

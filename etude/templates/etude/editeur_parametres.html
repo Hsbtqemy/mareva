@@ -1,0 +1,28 @@
+{% extends "etude/editeur_base.html" %}
+{% block titre %}Paramètres{% endblock %}
+{% block nav_parametres %}actif{% endblock %}
+
+{% block contenu %}
+  <h1>Paramètres de l'étude</h1>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="section">
+      <h2>Identité & textes</h2>
+      <div class="champ-bloc"><label>Nom de l'étude</label>{{ form.nom_etude }}{{ form.nom_etude.errors }}</div>
+      <div class="champ-bloc"><label>Titre d'accueil</label>{{ form.titre_accueil }}</div>
+      <div class="champ-bloc"><label>Description / consentement</label>{{ form.description }}</div>
+      <div class="champ-bloc"><label>Libellé du bouton de consentement</label>{{ form.bouton_consentement }}</div>
+      <div class="champ-bloc"><label>Introduction du profil</label>{{ form.intro_profil }}</div>
+      <div class="champ-bloc"><label>Texte de remerciement</label>{{ form.texte_remerciement }}</div>
+    </div>
+
+    <div class="section">
+      <h2>Déroulé</h2>
+      <div class="champ-bloc"><label class="opt">{{ form.ordre_groupes_aleatoire }} Proposer les groupes dans un ordre aléatoire</label></div>
+      <div class="champ-bloc"><label>Nombre maximal de groupes par participant (0 = illimité)</label>{{ form.max_groupes }}</div>
+    </div>
+
+    <div class="actions"><button type="submit" class="btn primaire">Enregistrer</button></div>
+  </form>
+{% endblock %}

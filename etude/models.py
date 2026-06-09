@@ -1,36 +1,68 @@
 """
 Modèles de l'étude.
 
-Schéma clé-valeur pour les réponses :
-  - Question : une question du protocole (gérée via l'admin Django)
-  - Choix    : options d'une question à choix multiple
-  - Enregistrement : un clip vidéo de la banque (+ sous-titres VTT)
-  - Participant    : une personne, identifiée par un jeton de session stable
-  - Jugement       : une évaluation = (un participant, un enregistrement, un horodatage)
-  - Reponse        : une réponse atomique = (un jugement, une question, une valeur)
+Principe : le questionnaire est un ensemble de GROUPES de questions.
+  - Un groupe « profil » est posé une seule fois (âge, genre...).
+  - Les groupes « standard » forment le pool tiré dans la boucle : on propose au
+    participant un groupe non encore répondu (aléatoire ou ordre fixe) tant qu'il
+    souhaite continuer.
 
-L'export CSV (voir admin.py) repivote les Reponses en format large :
-une ligne par Jugement, une colonne par Question.
+Chaque question porte son propre média (audio/vidéo) ; un groupe n'a pas de
+fichier commun. Un groupe peut être découpé en plusieurs écrans (« Suivant »)
+via le drapeau `saut_de_page` de ses questions.
+
+  - Groupe        : une unité de questions (profil ou standard)
+  - Question      : une question (type, média, options) dans un groupe
+  - Choix         : options d'une question à choix
+  - Media         : fichier audio/vidéo rattaché à une question
+  - Participant   : une personne, identifiée par un jeton de session stable
+  - Passage       : un participant a répondu à un groupe (= une itération)
+  - Reponse       : réponse atomique (un passage, une question, une valeur)
+  - ReponseProfil : réponse de profil (un participant, une question)
+  - Configuration : paramètres et textes de l'étude (singleton)
+
+L'export CSV (voir admin.py) repivote les réponses en format large.
 """
 import secrets
 
+from django.core.files.storage import FileSystemStorage
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 
 
 class Groupe(models.Model):
     """
-    Groupe (section) de questions dans le questionnaire posé autour du clip
-    tiré. Sert à organiser l'affichage : titre, consigne, et surtout la mise
-    en page (un groupe peut commencer une nouvelle page). Ordre configurable.
+    Groupe de questions = unité tirée par la boucle.
+
+    `portee` distingue le groupe de profil (posé une fois) des groupes standard
+    (pool de tirage). `inclure_tirage` permet d'exclure ponctuellement un groupe
+    standard du pool. `nb_evaluations` alimente le tirage pondéré.
     """
+    PROFIL = "profil"
+    STANDARD = "standard"
+    PORTEE_CHOICES = [
+        (STANDARD, "Standard (tiré dans la boucle)"),
+        (PROFIL, "Profil (posé une seule fois au début)"),
+    ]
+
     titre = models.CharField(max_length=200, blank=True, help_text="Titre de section affiché au participant (optionnel).")
-    consigne = models.TextField(blank=True, help_text="Consigne / texte d'introduction du groupe (optionnel).")
-    ordre = models.IntegerField(default=0, help_text="Ordre d'affichage croissant.")
-    nouvelle_page = models.BooleanField(
-        default=False,
-        help_text="Si coché, ce groupe commence une nouvelle page (sinon il suit le précédent sur la même page).",
+    consigne = models.TextField(blank=True, help_text="Consigne / introduction du groupe (optionnel).")
+    media = models.ForeignKey(
+        "Media", on_delete=models.SET_NULL, null=True, blank=True, related_name="groupes",
+        help_text="Vidéo unique du groupe, affichée en permanence à gauche (optionnel).",
     )
+    portee = models.CharField(
+        max_length=10, choices=PORTEE_CHOICES, default=STANDARD,
+        help_text="« Profil » : posé une seule fois au début. « Standard » : tiré dans la boucle.",
+    )
+    inclure_tirage = models.BooleanField(
+        default=True,
+        help_text="Si décoché, ce groupe standard est exclu du tirage (utile pour une intro épinglée).",
+    )
+    ordre = models.IntegerField(default=0, help_text="Ordre (croissant) ; utilisé si le tirage n'est pas aléatoire.")
     active = models.BooleanField(default=True, help_text="Décocher pour masquer le groupe sans le supprimer.")
+    nb_evaluations = models.PositiveIntegerField(default=0, help_text="Nombre de fois répondu (sert au tirage pondéré).")
 
     class Meta:
         ordering = ["ordre", "id"]
@@ -41,9 +73,8 @@ class Groupe(models.Model):
 
 class Media(models.Model):
     """
-    Média (audio ou vidéo) attaché à une question. Bibliothèque DISTINCTE du
-    vivier de tirage (Enregistrement) : un média de question ne doit jamais
-    être tiré comme clip sujet. Servi par la vue protégée media_question().
+    Média (audio ou vidéo) attaché à une question. Servi par la vue protégée
+    media_question().
     """
     VIDEO = "video"
     AUDIO = "audio"
@@ -57,28 +88,50 @@ class Media(models.Model):
 
     class Meta:
         ordering = ["code"]
-        verbose_name = "média de question"
-        verbose_name_plural = "médias de question"
+        verbose_name = "média"
+        verbose_name_plural = "médias"
 
     def __str__(self):
         return f"{self.code} ({self.get_type_media_display()})"
+
+
+@receiver(post_delete, sender=Media)
+def _supprimer_fichiers_media(sender, instance, **kwargs):
+    """
+    Supprime du disque le fichier (et le VTT) d'un Média supprimé, sauf s'il est
+    encore référencé par un autre Média (cas d'un fichier partagé). Couvre toutes
+    les voies de suppression (page Médias, admin, suppression en lot).
+    """
+    storage = FileSystemStorage()  # lit settings.MEDIA_ROOT à l'appel
+    for chemin in filter(None, {instance.fichier, instance.vtt}):
+        encore_utilise = (
+            Media.objects.filter(fichier=chemin).exists()
+            or Media.objects.filter(vtt=chemin).exists()
+        )
+        if encore_utilise:
+            continue
+        try:
+            storage.delete(chemin)
+        except Exception:
+            pass  # fichier déjà absent / chemin invalide : on ignore
 
 
 class Question(models.Model):
     ECHELLE = "echelle"
     CHOIX = "choix"
     TEXTE = "texte"
+    LONGTEXT = "longtext"
+    CARTES = "cartes"
+    MATRICE = "matrice"
+    DRAGDROP = "dragdrop"
     TYPE_CHOICES = [
         (ECHELLE, "Échelle numérique"),
-        (CHOIX, "Choix (une ou plusieurs options)"),
-        (TEXTE, "Texte libre"),
-    ]
-
-    PROFIL = "profil"
-    EXTRAIT = "extrait"
-    PORTEE_CHOICES = [
-        (EXTRAIT, "Par extrait (rattachée à chaque jugement)"),
-        (PROFIL, "Profil participant (posée une seule fois)"),
+        (CHOIX, "Choix (cases / boutons radio)"),
+        (CARTES, "Cartes (choix en cartes détaillées)"),
+        (MATRICE, "Matrice (sous-questions × catégories)"),
+        (DRAGDROP, "Classement par glisser-déposer"),
+        (TEXTE, "Texte court"),
+        (LONGTEXT, "Texte long"),
     ]
 
     code = models.SlugField(
@@ -89,10 +142,9 @@ class Question(models.Model):
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=ECHELLE)
     aide = models.CharField(max_length=400, blank=True, help_text="Texte d'aide optionnel sous la question.")
 
-    # Organisation et média (gérés dans l'éditeur visuel).
     groupe = models.ForeignKey(
         "Groupe", on_delete=models.SET_NULL, null=True, blank=True, related_name="questions",
-        help_text="Groupe (section) auquel appartient la question.",
+        help_text="Groupe auquel appartient la question.",
     )
     media = models.ForeignKey(
         "Media", on_delete=models.SET_NULL, null=True, blank=True, related_name="questions",
@@ -102,24 +154,27 @@ class Question(models.Model):
     # Pour le type 'echelle'
     min_val = models.IntegerField(null=True, blank=True)
     max_val = models.IntegerField(null=True, blank=True)
-    label_min = models.CharField(max_length=80, blank=True, help_text="Libellé sous la borne basse (ex. Pas du tout clair).")
-    label_max = models.CharField(max_length=80, blank=True, help_text="Libellé sous la borne haute (ex. Très clair).")
+    label_min = models.CharField(max_length=80, blank=True, help_text="Libellé sous la borne basse (ex. Pas du tout).")
+    label_max = models.CharField(max_length=80, blank=True, help_text="Libellé sous la borne haute (ex. Tout à fait).")
 
-    # Pour le type 'choix'
-    choix_multiple = models.BooleanField(default=False, help_text="Si coché, plusieurs options sélectionnables.")
-
-    portee = models.CharField(
-        max_length=10, choices=PORTEE_CHOICES, default=EXTRAIT,
-        help_text="« Profil » : posée une fois au participant (âge, genre...). "
-                  "« Par extrait » : posée pour chaque extrait évalué.",
+    # Pour les types 'choix' / 'cartes'
+    choix_multiple = models.BooleanField(default=False, help_text="Si coché, plusieurs options sélectionnables (choix / cartes).")
+    melanger = models.BooleanField(
+        default=False,
+        help_text="Mélanger l'ordre des options / catégories (rotation) pour chaque participant.",
     )
+    # Pour les types 'texte' / 'longtext' : longueur indicative (lignes / max).
+    longueur = models.IntegerField(null=True, blank=True, help_text="Longueur indicative pour les champs texte (optionnel).")
+
     obligatoire = models.BooleanField(default=True)
+    saut_de_page = models.BooleanField(
+        default=False,
+        help_text="Si coché, cette question commence un nouvel écran (un bouton « Suivant » apparaît avant elle).",
+    )
     ordre = models.IntegerField(default=0, help_text="Ordre dans le groupe (croissant).")
     active = models.BooleanField(default=True, help_text="Décocher pour retirer la question sans la supprimer.")
 
     class Meta:
-        # Tri par groupe puis ordre interne ; les questions sans groupe (legacy)
-        # passent en premier (groupe_id NULL).
         ordering = ["groupe__ordre", "ordre", "id"]
 
     def __str__(self):
@@ -134,9 +189,11 @@ class Question(models.Model):
 
 
 class Choix(models.Model):
+    """Option d'une question (choix / cartes) ou catégorie (colonne d'une matrice)."""
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="choix")
-    valeur = models.CharField(max_length=80, help_text="Valeur enregistrée (ex. voix).")
-    libelle = models.CharField(max_length=200, help_text="Texte affiché (ex. Une voix humaine).")
+    valeur = models.CharField(max_length=80, help_text="Valeur enregistrée (ex. oui, AO01).")
+    libelle = models.CharField(max_length=200, help_text="Texte affiché (ex. Oui, tout à fait).")
+    description = models.CharField(max_length=300, blank=True, help_text="Détail affiché sous le libellé (cartes).")
     ordre = models.IntegerField(default=0)
 
     class Meta:
@@ -146,30 +203,27 @@ class Choix(models.Model):
         return f"{self.question.code} → {self.libelle}"
 
 
-class Enregistrement(models.Model):
-    code = models.SlugField(max_length=60, unique=True, help_text="Identifiant du clip (export).")
-    titre = models.CharField(max_length=200, blank=True, help_text="Usage interne uniquement, non montré au participant.")
-    # On stocke un chemin RELATIF à MEDIA_ROOT. Les fichiers ne sont PAS servis
-    # directement : l'accès passe par une vue protégée (voir views.media_protege).
-    fichier_video = models.CharField(max_length=300, help_text="Chemin relatif sous MEDIA_ROOT, ex. videos/clip_042.mp4")
-    fichier_vtt = models.CharField(max_length=300, blank=True, help_text="Chemin relatif du sous-titre WebVTT, ex. videos/clip_042.vtt")
-
-    categorie = models.CharField(max_length=80, blank=True, help_text="Métadonnée libre pour l'analyse (condition, source...).")
-    actif = models.BooleanField(default=True, help_text="Décocher pour exclure du tirage.")
-    nb_evaluations = models.PositiveIntegerField(default=0, help_text="Compteur mis à jour à chaque jugement (sert au tirage pondéré).")
+class SousQuestion(models.Model):
+    """
+    Ligne d'une question matricielle (ex. « Primary Role », « Secondary Role »).
+    Son `code` sert d'en-tête de colonne à l'export (équivalent du varName).
+    """
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="sous_questions")
+    code = models.SlugField(max_length=60, unique=True, help_text="Identifiant export (ex. BLUE_SQ001).")
+    libelle = models.CharField(max_length=300, help_text="Intitulé de la ligne (ex. Primary Role).")
+    ordre = models.IntegerField(default=0)
 
     class Meta:
-        ordering = ["code"]
+        ordering = ["ordre", "id"]
 
     def __str__(self):
-        return f"{self.code} (n={self.nb_evaluations})"
+        return f"{self.question.code} / {self.code}"
 
 
 class Participant(models.Model):
     jeton = models.CharField(max_length=64, unique=True, db_index=True, help_text="Identifiant anonyme stable de session.")
     consentement = models.BooleanField(default=False)
     cree_le = models.DateTimeField(auto_now_add=True)
-    # Métadonnées d'écoute potentiellement utiles à l'analyse.
     user_agent = models.CharField(max_length=300, blank=True)
 
     def __str__(self):
@@ -178,17 +232,12 @@ class Participant(models.Model):
 
 class CodeAcces(models.Model):
     """
-    Code d'accès individuel (un code = un participant). Le chercheur génère un
-    lot de codes dans l'admin et en distribue un par personne invitée. À la
-    première saisie, le code est lié à un Participant ; les saisies suivantes
-    du même code restaurent la session de CE participant (reprise possible).
-
-    Le code n'est jamais exporté avec les données : la correspondance
-    code → personne reste hors de l'outil (chez le chercheur).
+    Code d'accès individuel (un code = un participant) ou lien collectif.
+    Le code n'est jamais exporté : la correspondance code → personne reste
+    hors de l'outil (chez le chercheur).
     """
     code = models.CharField(
-        max_length=64, unique=True, db_index=True,
-        blank=True,  # laissé vide à la création → généré automatiquement
+        max_length=64, unique=True, db_index=True, blank=True,
         help_text="Code remis à un participant. Laisser vide pour en générer un automatiquement.",
     )
     note = models.CharField(
@@ -197,8 +246,8 @@ class CodeAcces(models.Model):
     )
     collectif = models.BooleanField(
         default=False,
-        help_text="Si coché : lien collectif à partager largement (chaque visiteur "
-                  "devient un nouveau participant). Sinon : code individuel lié à une personne.",
+        help_text="Si coché : lien collectif à partager largement (chaque visiteur devient un "
+                  "nouveau participant). Sinon : code individuel lié à une personne.",
     )
     actif = models.BooleanField(default=True, help_text="Décocher pour révoquer l'accès.")
     cree_le = models.DateTimeField(auto_now_add=True)
@@ -222,39 +271,51 @@ class CodeAcces(models.Model):
         super().save(*args, **kwargs)
 
 
-class Jugement(models.Model):
-    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="jugements")
-    enregistrement = models.ForeignKey(Enregistrement, on_delete=models.PROTECT, related_name="jugements")
+class Passage(models.Model):
+    """
+    Un participant a abordé un groupe (une itération de la boucle). `fin` non
+    nul = groupe terminé. Un participant ne répond qu'une fois à un groupe.
+    """
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="passages")
+    groupe = models.ForeignKey(Groupe, on_delete=models.PROTECT, related_name="passages")
     debut = models.DateTimeField(auto_now_add=True)
-    fin = models.DateTimeField(null=True, blank=True, help_text="Horodatage de soumission des réponses.")
+    fin = models.DateTimeField(null=True, blank=True, help_text="Horodatage de fin du groupe.")
 
     class Meta:
-        # Un participant ne juge pas deux fois le même enregistrement.
-        unique_together = [("participant", "enregistrement")]
+        unique_together = [("participant", "groupe")]
         ordering = ["debut"]
 
     def __str__(self):
-        return f"{self.participant} × {self.enregistrement.code}"
+        return f"{self.participant} × {self.groupe}"
 
 
 class Reponse(models.Model):
-    jugement = models.ForeignKey(Jugement, on_delete=models.CASCADE, related_name="reponses")
+    passage = models.ForeignKey(Passage, on_delete=models.CASCADE, related_name="reponses")
     question = models.ForeignKey(Question, on_delete=models.PROTECT)
-    # Valeur stockée en texte ; pour les choix multiples, valeurs jointes par '|'.
+    # Pour une matrice : une réponse par sous-question (ligne) ; sinon null.
+    sous_question = models.ForeignKey(
+        SousQuestion, on_delete=models.CASCADE, null=True, blank=True, related_name="reponses",
+    )
+    # Valeur en texte ; choix multiples / classement : valeurs jointes par '|'.
     valeur = models.TextField(blank=True)
 
     class Meta:
-        unique_together = [("jugement", "question")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["passage", "question", "sous_question"],
+                name="reponse_unique_passage_question_sousq",
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.jugement_id}/{self.question.code} = {self.valeur[:30]}"
+        cle = self.sous_question.code if self.sous_question_id else self.question.code
+        return f"{self.passage_id}/{cle} = {self.valeur[:30]}"
 
 
 class ReponseProfil(models.Model):
     """
-    Réponse à une question de PORTÉE PROFIL : décrit le participant (âge,
-    genre...), posée une seule fois et stockée au niveau du participant, pas
-    sur un jugement (qui ne concerne qu'un extrait).
+    Réponse à une question d'un groupe de PROFIL : décrit le participant
+    (âge, genre...), posée une seule fois et stockée sur le participant.
     """
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="reponses_profil")
     question = models.ForeignKey(Question, on_delete=models.PROTECT)
@@ -269,9 +330,8 @@ class ReponseProfil(models.Model):
 
 class Configuration(models.Model):
     """
-    Configuration de l'étude, éditable dans l'admin (un seul enregistrement).
-    Centralise les textes affichés au participant pour que l'étude soit
-    neutre et entièrement paramétrable, sans rien coder en dur.
+    Configuration de l'étude, éditable dans l'admin (un seul enregistrement) :
+    textes affichés et paramètres de déroulé (aléatoire, nombre de groupes).
     """
     nom_etude = models.CharField(
         max_length=200, default="Étude",
@@ -300,7 +360,7 @@ class Configuration(models.Model):
             "Ces questions ne sont posées qu'une seule fois et servent uniquement "
             "aux statistiques de l'étude. Vos réponses restent anonymes."
         ),
-        help_text="Texte d'introduction de la page de profil (questions posées une fois).",
+        help_text="Texte d'introduction de la page de profil.",
     )
     texte_remerciement = models.TextField(
         default=(
@@ -308,6 +368,18 @@ class Configuration(models.Model):
             "vous pouvez fermer cette page."
         ),
         help_text="Texte de la page de fin.",
+    )
+
+    # --- Paramètres de déroulé ---
+    ordre_groupes_aleatoire = models.BooleanField(
+        default=True,
+        help_text="Si coché, les groupes sont proposés dans un ordre aléatoire (pondéré pour "
+                  "équilibrer la couverture). Sinon, dans leur ordre défini.",
+    )
+    max_groupes = models.PositiveIntegerField(
+        default=0,
+        help_text="Nombre maximal de groupes proposés à un participant (0 = illimité, "
+                  "jusqu'à épuisement).",
     )
 
     class Meta:
@@ -318,8 +390,7 @@ class Configuration(models.Model):
         return self.nom_etude
 
     def save(self, *args, **kwargs):
-        # Singleton : on force toujours la même ligne.
-        self.pk = 1
+        self.pk = 1  # singleton
         super().save(*args, **kwargs)
 
     @classmethod

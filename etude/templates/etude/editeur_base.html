@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titre %}Éditeur{% endblock %} — {{ config.nom_etude }}</title>
+  <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <style>
+    :root{
+      --fond:#14171c;--surface:#1d2127;--surface2:#232832;--bord:#2c323b;
+      --texte:#e6e8ec;--doux:#9aa3af;--accent:#6ea8c4;--accent-fonce:#4f8aa6;
+      --erreur:#c98b8b;--ok:#7fb38a;--rayon:10px;
+    }
+    @media (prefers-color-scheme: light){
+      :root{
+        --fond:#f4f6f8;--surface:#ffffff;--surface2:#eaeef2;--bord:#d3dae1;
+        --texte:#1c2127;--doux:#5b6675;--accent:#3a7d99;--accent-fonce:#336e88;
+        --erreur:#b04a4a;--ok:#3f7d52;
+      }
+    }
+    :root[data-theme="light"]{
+      --fond:#f4f6f8;--surface:#ffffff;--surface2:#eaeef2;--bord:#d3dae1;
+      --texte:#1c2127;--doux:#5b6675;--accent:#3a7d99;--accent-fonce:#336e88;
+      --erreur:#b04a4a;--ok:#3f7d52;
+    }
+    :root[data-theme="dark"]{
+      --fond:#14171c;--surface:#1d2127;--surface2:#232832;--bord:#2c323b;
+      --texte:#e6e8ec;--doux:#9aa3af;--accent:#6ea8c4;--accent-fonce:#4f8aa6;
+      --erreur:#c98b8b;--ok:#7fb38a;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--fond);color:var(--texte);
+      font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
+    .barre{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:6px;
+      padding:12px 24px;background:var(--surface);border-bottom:1px solid var(--bord);flex-wrap:wrap}
+    .barre .marque{font-size:16px;font-weight:600;margin-right:12px}
+    a.lien,.btn{appearance:none;border:1px solid var(--bord);background:var(--surface2);
+      color:var(--texte);text-decoration:none;font:inherit;font-size:14px;
+      padding:8px 14px;border-radius:8px;cursor:pointer;display:inline-block}
+    a.lien.actif{border-color:var(--accent);color:var(--accent)}
+    .btn.primaire{background:var(--accent-fonce);border-color:var(--accent-fonce);color:#fff;font-weight:600}
+    .btn.primaire:hover{background:var(--accent)}
+    .btn.danger{color:var(--erreur);border-color:transparent;background:transparent}
+    .barre .pousse{margin-left:auto}
+    .btn:focus-visible,a.lien:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+      outline:2px solid var(--accent);outline-offset:1px}
+    .cadre{max-width:880px;margin:0 auto;padding:24px}
+    h1{font-size:22px;margin:0 0 18px}
+    .msg{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:14px}
+    .msg.success{background:rgba(127,179,138,.12);border:1px solid var(--ok);color:var(--ok)}
+    .msg.error{background:rgba(201,139,139,.12);border:1px solid var(--erreur);color:var(--erreur)}
+    /* Formulaires */
+    .champ-bloc{margin-bottom:16px}
+    label{display:block;font-size:13px;color:var(--doux);margin-bottom:4px}
+    .champ{width:100%;background:var(--surface);color:var(--texte);border:1px solid var(--bord);
+      border-radius:8px;padding:9px 11px;font:inherit}
+    textarea.champ{resize:vertical;min-height:70px}
+    .case{accent-color:var(--accent);width:18px;height:18px;vertical-align:middle}
+    .ligne{display:flex;gap:16px;flex-wrap:wrap}
+    .ligne>.champ-bloc{flex:1;min-width:140px}
+    .opt{display:inline-flex;align-items:center;gap:8px;color:var(--texte);font-size:14px;margin-right:18px}
+    .aide-champ{font-size:12px;color:var(--doux);margin-top:3px}
+    .err{color:var(--erreur);font-size:12px;margin-top:3px}
+    .section{border:1px solid var(--bord);border-radius:var(--rayon);padding:16px;margin:18px 0;background:var(--surface)}
+    .section h2{font-size:15px;margin:0 0 12px}
+    .frow{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+    .frow .col{flex:1;min-width:0}
+    .frow .col-lg{flex:2}
+    .frow .col-ordre{flex:0 0 64px}
+    .frow .col-act{flex:0 0 auto}
+    .frow .champ{width:100%;padding:7px 9px}
+    .frow.entete{margin-bottom:2px}
+    .frow.entete span{font-size:12px;color:var(--doux)}
+    .actions{display:flex;gap:12px;margin-top:24px}
+    {% block style %}{% endblock %}
+  </style>
+</head>
+<body>
+  <div class="barre">
+    <span class="marque">{{ config.nom_etude }}</span>
+    <a class="lien {% block nav_questionnaire %}{% endblock %}" href="{% url 'editeur' %}">Questionnaire</a>
+    <a class="lien {% block nav_medias %}{% endblock %}" href="{% url 'editeur_medias' %}">Médias</a>
+    <a class="lien {% block nav_parametres %}{% endblock %}" href="{% url 'editeur_parametres' %}">Paramètres</a>
+    <a class="lien pousse" href="/acces/" target="_blank">Aperçu ↗</a>
+    <a class="lien" href="/admin/">Données / admin</a>
+    <button type="button" class="btn" id="theme-toggle" title="Thème clair / sombre" aria-label="Basculer le thème"><span class="t-icon">🌙</span></button>
+  </div>
+  <main class="cadre">
+    {% if messages %}{% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
+    {% block contenu %}{% endblock %}
+  </main>
+  {% block script %}{% endblock %}
+  <script>
+    (function(){
+      var b = document.getElementById('theme-toggle'); if(!b) return;
+      var mq = window.matchMedia ? matchMedia('(prefers-color-scheme: light)') : null;
+      function eff(){ var a = document.documentElement.getAttribute('data-theme'); return a || ((mq && mq.matches) ? 'light' : 'dark'); }
+      function maj(){ b.querySelector('.t-icon').textContent = eff()==='light' ? '☀️' : '🌙'; }
+      maj();
+      b.addEventListener('click', function(){
+        var t = eff()==='light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+        try { localStorage.setItem('theme', t); } catch(e){}
+        maj();
+      });
+      if (mq && mq.addEventListener) mq.addEventListener('change', maj);
+    })();
+  </script>
+</body>
+</html>

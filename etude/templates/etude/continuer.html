@@ -4,13 +4,13 @@
   <p class="eyebrow">Réponses enregistrées</p>
   <h1>Merci, c'est noté.</h1>
   {% if reste %}
-    <p class="intro">Souhaitez-vous évaluer un autre extrait ou vous arrêter ici ?</p>
+    <p class="intro">Souhaitez-vous continuer ou vous arrêter ici ?</p>
     <div class="actions">
-      <a href="{% url 'tache' %}" class="bouton">Évaluer un autre extrait</a>
+      <a href="{% url 'tache' %}" class="bouton">Continuer</a>
       <a href="{% url 'fin' %}" class="bouton secondaire">M'arrêter ici</a>
     </div>
   {% else %}
-    <p class="intro">Vous avez évalué tous les extraits disponibles. Merci pour votre participation.</p>
+    <p class="intro">Vous avez répondu à toutes les questions disponibles. Merci pour votre participation.</p>
     <div class="actions">
       <a href="{% url 'fin' %}" class="bouton">Terminer</a>
     </div>

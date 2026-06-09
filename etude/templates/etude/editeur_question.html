@@ -1,0 +1,132 @@
+{% extends "etude/editeur_base.html" %}
+{% block titre %}{% if question %}Modifier{% else %}Nouvelle{% endif %} question{% endblock %}
+{% block nav_questionnaire %}actif{% endblock %}
+
+{% block contenu %}
+  <h1>{% if question %}Modifier une question{% else %}Nouvelle question{% endif %}</h1>
+
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="msg error">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="ligne">
+      <div class="champ-bloc"><label>Groupe</label>{{ form.groupe }}{{ form.groupe.errors }}</div>
+      <div class="champ-bloc"><label>Code (export)</label>{{ form.code }}{{ form.code.errors }}</div>
+      <div class="champ-bloc"><label>Type</label>{{ form.type }}{{ form.type.errors }}</div>
+    </div>
+    <div class="champ-bloc"><label>Libellé (question affichée)</label>{{ form.libelle }}{{ form.libelle.errors }}</div>
+    <div class="ligne">
+      <div class="champ-bloc"><label>Aide (optionnel)</label>{{ form.aide }}</div>
+      <div class="champ-bloc"><label>Média (audio/vidéo)</label>{{ form.media }}</div>
+    </div>
+    <div class="champ-bloc">
+      <label class="opt">{{ form.obligatoire }} Obligatoire</label>
+      <label class="opt">{{ form.saut_de_page }} Nouvel écran avant (Suivant)</label>
+      <label class="opt">{{ form.melanger }} Mélanger les options</label>
+      <label class="opt">{{ form.active }} Active</label>
+    </div>
+
+    <div class="section" data-types="echelle">
+      <h2>Échelle</h2>
+      <div class="ligne">
+        <div class="champ-bloc"><label>Min</label>{{ form.min_val }}</div>
+        <div class="champ-bloc"><label>Max</label>{{ form.max_val }}</div>
+        <div class="champ-bloc"><label>Libellé borne basse</label>{{ form.label_min }}</div>
+        <div class="champ-bloc"><label>Libellé borne haute</label>{{ form.label_max }}</div>
+      </div>
+    </div>
+
+    <div class="section" data-types="texte longtext">
+      <h2>Texte</h2>
+      <div class="champ-bloc"><label>Longueur indicative (caractères)</label>{{ form.longueur }}</div>
+    </div>
+
+    <div class="section" data-types="choix cartes matrice">
+      <h2 id="titre-options">Options</h2>
+      <label class="opt" data-types="choix cartes">{{ form.choix_multiple }} Plusieurs réponses possibles</label>
+      {{ choix.management_form }}
+      <div class="frow entete"><span class="col-ordre">Ordre</span><span class="col">Valeur</span><span class="col col-lg">Libellé</span><span class="col col-lg">Description (cartes)</span><span class="col-act"></span></div>
+      <div id="choix-rows">
+        {% for f in choix %}
+          <div class="frow">
+            {{ f.id }}
+            <span class="col-ordre">{{ f.ordre }}</span><span class="col">{{ f.valeur }}</span>
+            <span class="col col-lg">{{ f.libelle }}</span><span class="col col-lg">{{ f.description }}</span>
+            <span class="col-act"><span style="display:none">{{ f.DELETE }}</span><button type="button" class="btn danger" data-suppr>✕</button></span>
+          </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn" id="choix-add">+ Option</button>
+      <template id="choix-empty"><div class="frow">
+        {{ choix.empty_form.id }}
+        <span class="col-ordre">{{ choix.empty_form.ordre }}</span><span class="col">{{ choix.empty_form.valeur }}</span>
+        <span class="col col-lg">{{ choix.empty_form.libelle }}</span><span class="col col-lg">{{ choix.empty_form.description }}</span>
+        <span class="col-act"><span style="display:none">{{ choix.empty_form.DELETE }}</span><button type="button" class="btn danger" data-suppr>✕</button></span>
+      </div></template>
+    </div>
+
+    <div class="section" data-types="matrice">
+      <h2>Sous-questions (lignes de la matrice)</h2>
+      {{ sousq.management_form }}
+      <div class="frow entete"><span class="col-ordre">Ordre</span><span class="col">Code (export)</span><span class="col col-lg">Libellé</span><span class="col-act"></span></div>
+      <div id="sousq-rows">
+        {% for f in sousq %}
+          <div class="frow">
+            {{ f.id }}
+            <span class="col-ordre">{{ f.ordre }}</span><span class="col">{{ f.code }}</span><span class="col col-lg">{{ f.libelle }}</span>
+            <span class="col-act"><span style="display:none">{{ f.DELETE }}</span><button type="button" class="btn danger" data-suppr>✕</button></span>
+          </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn" id="sousq-add">+ Sous-question</button>
+      <template id="sousq-empty"><div class="frow">
+        {{ sousq.empty_form.id }}
+        <span class="col-ordre">{{ sousq.empty_form.ordre }}</span><span class="col">{{ sousq.empty_form.code }}</span><span class="col col-lg">{{ sousq.empty_form.libelle }}</span>
+        <span class="col-act"><span style="display:none">{{ sousq.empty_form.DELETE }}</span><button type="button" class="btn danger" data-suppr>✕</button></span>
+      </div></template>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn primaire">Enregistrer</button>
+      <a class="lien" href="{% url 'editeur' %}">Annuler</a>
+    </div>
+  </form>
+{% endblock %}
+
+{% block script %}
+<script>
+  const typeSel = document.getElementById("id_type");
+  function majSections(){
+    const t = typeSel.value;
+    document.querySelectorAll("[data-types]").forEach(el => {
+      el.style.display = el.dataset.types.split(" ").includes(t) ? "" : "none";
+    });
+    const titre = document.getElementById("titre-options");
+    if(titre) titre.textContent = (t === "matrice") ? "Catégories (colonnes)" : "Options";
+  }
+  typeSel.addEventListener("change", majSections); majSections();
+
+  function initFormset(prefix){
+    const cont = document.getElementById(prefix+"-rows");
+    const tmpl = document.getElementById(prefix+"-empty");
+    const total = document.getElementById("id_"+prefix+"-TOTAL_FORMS");
+    document.getElementById(prefix+"-add").addEventListener("click", () => {
+      const i = parseInt(total.value);
+      const tmp = document.createElement("div");
+      tmp.innerHTML = tmpl.innerHTML.replace(/__prefix__/g, i);
+      cont.appendChild(tmp.firstElementChild);  // le <div class="frow"> du template
+      total.value = i + 1;
+    });
+    cont.addEventListener("click", e => {
+      if(!e.target.matches("[data-suppr]")) return;
+      const row = e.target.closest(".frow");
+      const pk = row.querySelector('input[name$="-id"]');
+      const del = row.querySelector('input[name$="-DELETE"]');
+      if(pk && pk.value && del){ del.checked = true; }
+      else { row.querySelectorAll("input[type=text],input[type=number],textarea").forEach(x => x.value = ""); }
+      row.style.display = "none";
+    });
+  }
+  initFormset("choix"); initFormset("sousq");
+</script>
+{% endblock %}

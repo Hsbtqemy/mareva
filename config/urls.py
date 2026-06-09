@@ -14,8 +14,7 @@ urlpatterns = [
     path("tache/", views.tache, name="tache"),
     path("soumettre/", views.soumettre, name="soumettre"),
     path("fin/", views.fin, name="fin"),
-    # Accès média protégé : clip sujet et média de question.
-    path("media/<str:kind>/<str:code>/", views.media_protege, name="media_protege"),
+    # Accès média protégé d'une question.
     path("media-question/<str:kind>/<str:code>/", views.media_question, name="media_question"),
     # Éditeur visuel du questionnaire (réservé au staff).
     path("editeur/", editeur.editeur, name="editeur"),
@@ -24,4 +23,10 @@ urlpatterns = [
     path("editeur/question/", editeur.api_question, name="editeur_question"),
     path("editeur/question/<int:qid>/supprimer/", editeur.api_question_supprimer, name="editeur_question_supprimer"),
     path("editeur/ordre/", editeur.api_reordonner, name="editeur_ordre"),
+    # Construction dans l'interface du site.
+    path("editeur/q/nouveau/", editeur.question_form, name="editeur_question_nouveau"),
+    path("editeur/q/<int:qid>/", editeur.question_form, name="editeur_question_form"),
+    path("editeur/medias/", editeur.medias, name="editeur_medias"),
+    path("editeur/medias/<int:mid>/supprimer/", editeur.media_supprimer, name="editeur_media_supprimer"),
+    path("editeur/parametres/", editeur.parametres, name="editeur_parametres"),
 ]

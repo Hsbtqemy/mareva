@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Éditeur — {{ config.nom_etude }}</title>
+  <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   {{ data|json_script:"editeur-data" }}
   <style>
     :root{
@@ -11,54 +12,64 @@
       --texte:#e6e8ec;--doux:#9aa3af;--accent:#6ea8c4;--accent-fonce:#4f8aa6;
       --erreur:#c98b8b;--rayon:10px;
     }
+    @media (prefers-color-scheme: light){
+      :root{
+        --fond:#f4f6f8;--surface:#ffffff;--surface2:#eaeef2;--bord:#d3dae1;
+        --texte:#1c2127;--doux:#5b6675;--accent:#3a7d99;--accent-fonce:#336e88;
+        --erreur:#b04a4a;
+      }
+    }
+    :root[data-theme="light"]{
+      --fond:#f4f6f8;--surface:#ffffff;--surface2:#eaeef2;--bord:#d3dae1;
+      --texte:#1c2127;--doux:#5b6675;--accent:#3a7d99;--accent-fonce:#336e88;--erreur:#b04a4a;
+    }
+    :root[data-theme="dark"]{
+      --fond:#14171c;--surface:#1d2127;--surface2:#232832;--bord:#2c323b;
+      --texte:#e6e8ec;--doux:#9aa3af;--accent:#6ea8c4;--accent-fonce:#4f8aa6;--erreur:#c98b8b;
+    }
     *{box-sizing:border-box}
     body{margin:0;background:var(--fond);color:var(--texte);
       font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
-    .barre{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;
-      padding:14px 24px;background:var(--surface);border-bottom:1px solid var(--bord)}
-    .barre h1{font-size:17px;margin:0;font-weight:600;flex:1}
+    .barre{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;
+      padding:14px 24px;background:var(--surface);border-bottom:1px solid var(--bord);flex-wrap:wrap}
+    .barre .marque{font-size:16px;margin:0;font-weight:600;margin-right:12px}
+    .barre .pousse{margin-left:auto}
     a.lien,.btn{appearance:none;border:1px solid var(--bord);background:var(--surface2);
       color:var(--texte);text-decoration:none;font:inherit;font-size:14px;
-      padding:8px 14px;border-radius:8px;cursor:pointer}
+      padding:8px 14px;border-radius:8px;cursor:pointer;display:inline-block}
+    a.lien.actif{border-color:var(--accent);color:var(--accent)}
     .btn.primaire{background:var(--accent-fonce);border-color:var(--accent-fonce);color:#fff;font-weight:600}
     .btn.primaire:hover{background:var(--accent)}
     .btn.danger{color:var(--erreur);border-color:transparent;background:transparent}
     .btn:focus-visible,a.lien:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
       outline:2px solid var(--accent);outline-offset:1px}
     .cadre{max-width:880px;margin:0 auto;padding:24px}
+    .aide-haut{color:var(--doux);font-size:13px;margin:0 0 18px}
     .groupe{background:var(--surface);border:1px solid var(--bord);border-radius:var(--rayon);
       margin-bottom:18px;overflow:hidden}
+    .groupe.profil{border-color:var(--accent-fonce)}
     .groupe.dragging,.qrow.dragging{opacity:.4}
     .ghead{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surface2);
-      border-bottom:1px solid var(--bord)}
+      border-bottom:1px solid var(--bord);flex-wrap:wrap}
     .poignee{cursor:grab;color:var(--doux);user-select:none;font-size:18px;padding:0 4px}
-    .ghead input.titre{flex:1;font-size:15px;font-weight:600;background:transparent;border:0;
+    .ghead input.titre{flex:1;min-width:140px;font-size:15px;font-weight:600;background:transparent;border:0;
       color:var(--texte);padding:6px}
     .ghead input.titre:focus{background:var(--fond);border-radius:6px}
+    select,.gconsigne{background:var(--fond);color:var(--texte);border:1px solid var(--bord);
+      border-radius:8px;padding:6px 8px;font:inherit;font-size:13px}
     .gcorps{padding:12px 14px}
-    .gconsigne{width:100%;background:var(--fond);color:var(--texte);border:1px solid var(--bord);
-      border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;resize:vertical;margin-bottom:10px}
+    .gconsigne{width:100%;resize:vertical;margin-bottom:10px}
     label.opt{font-size:13px;color:var(--doux);display:inline-flex;align-items:center;gap:6px;margin-right:16px}
-    .pageflag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);
-      border:1px solid var(--bord);border-radius:20px;padding:2px 10px}
+    .badge{font-size:11px;color:var(--doux);border:1px solid var(--bord);border-radius:20px;padding:2px 8px;white-space:nowrap}
+    .badge.media{color:var(--accent)}
+    .badge.profil{color:var(--accent)}
     .qlist{min-height:14px;display:flex;flex-direction:column;gap:8px;margin:10px 0}
     .qlist.survol{outline:2px dashed var(--accent-fonce);outline-offset:4px;border-radius:8px}
-    .qrow{background:var(--fond);border:1px solid var(--bord);border-radius:8px}
-    .qtete{display:flex;align-items:center;gap:10px;padding:10px 12px}
-    .qtete .lib{flex:1}
-    .badge{font-size:11px;color:var(--doux);border:1px solid var(--bord);border-radius:20px;padding:2px 8px}
-    .badge.media{color:var(--accent)}
+    .qrow{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--fond);
+      border:1px solid var(--bord);border-radius:8px;flex-wrap:wrap}
+    .qrow.inactive{opacity:.55}
+    .qrow .lib{flex:1;min-width:120px}
     .qcode{font-size:11px;color:var(--doux);font-family:ui-monospace,monospace}
-    .panneau{border-top:1px solid var(--bord);padding:14px;display:none;gap:12px;flex-direction:column}
-    .panneau.ouvert{display:flex}
-    .panneau label{font-size:12px;color:var(--doux);display:block;margin-bottom:3px}
-    .panneau input[type=text],.panneau textarea,.panneau select{width:100%;background:var(--surface2);
-      color:var(--texte);border:1px solid var(--bord);border-radius:8px;padding:8px 10px;font:inherit}
-    .rangee{display:flex;gap:12px;flex-wrap:wrap}
-    .rangee>div{flex:1;min-width:120px}
-    .cond{border:1px dashed var(--bord);border-radius:8px;padding:12px;background:var(--surface2)}
-    .choix-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-    .choix-row input{flex:1}
     .msg{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:14px;display:none}
     .msg.err{display:block;background:rgba(201,139,139,.12);border:1px solid var(--erreur);color:var(--erreur)}
     .vide{color:var(--doux);font-size:13px;font-style:italic;padding:6px 2px}
@@ -66,17 +77,27 @@
 </head>
 <body>
   <div class="barre">
-    <h1>Éditeur de questionnaire</h1>
+    <span class="marque">{{ config.nom_etude }}</span>
+    <a class="lien actif" href="{% url 'editeur' %}">Questionnaire</a>
+    <a class="lien" href="{% url 'editeur_medias' %}">Médias</a>
+    <a class="lien" href="{% url 'editeur_parametres' %}">Paramètres</a>
     <button class="btn primaire" id="add-groupe">+ Groupe</button>
-    <a class="lien" href="/tache/" target="_blank">Aperçu participant ↗</a>
-    <a class="lien" href="/admin/">Admin</a>
+    <a class="lien pousse" href="/acces/" target="_blank">Aperçu ↗</a>
+    <a class="lien" href="/admin/">Données / admin</a>
+    <button type="button" class="btn" id="theme-toggle" title="Thème clair / sombre" aria-label="Basculer le thème"><span class="t-icon">🌙</span></button>
   </div>
 
   <div class="cadre">
+    <p class="aide-haut">
+      Agencez le questionnaire : glissez les groupes et les questions (⠿).
+      Construisez/modifiez une question via « Modifier » (formulaire d'admin).
+      Réglez l'aléatoire global dans « Paramètres ».
+    </p>
     <div class="msg" id="msg"></div>
     <div id="groupes"></div>
 
     <h2 style="font-size:14px;color:var(--doux);margin:24px 0 10px">Questions sans groupe</h2>
+    <p class="aide-haut">Non affichées tant qu'elles ne sont pas glissées dans un groupe.</p>
     <div class="qlist" id="sans-groupe" data-groupe=""></div>
   </div>
 
@@ -84,10 +105,15 @@
     const DATA = JSON.parse(document.getElementById("editeur-data").textContent);
     const CSRF = "{{ csrf_token }}";
     const $ = (s, r=document) => r.querySelector(s);
-    // Échappe le texte saisi par le staff avant injection dans innerHTML
-    // (un libellé contenant " ou < ne doit pas casser le balisage).
     const esc = s => (s==null ? "" : String(s)).replace(/[&<>"']/g,
       c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    function optionsMedia(sel){
+      let o = '<option value="">— aucune —</option>';
+      for(const m of (DATA.medias||[])){
+        o += `<option value="${m.id}" ${sel==m.id?"selected":""}>${esc(m.code)} (${esc(m.type)})</option>`;
+      }
+      return o;
+    }
 
     async function api(url, body){
       const r = await fetch(url, {
@@ -95,178 +121,78 @@
         body: JSON.stringify(body||{})
       });
       let data = {}; try{ data = await r.json(); }catch(e){}
-      if(!r.ok){ montrerErreur(data.erreur || "Erreur serveur."); throw new Error(data.erreur||r.status); }
+      if(!r.ok){ const m=$("#msg"); m.textContent=data.erreur||"Erreur serveur."; m.className="msg err"; throw new Error(); }
       return data;
-    }
-    function montrerErreur(t){ const m=$("#msg"); m.textContent=t; m.className="msg err"; }
-
-    /* ---------- Rendu ---------- */
-    function optionsMedia(sel){
-      let o = '<option value="">— aucun média —</option>';
-      for(const m of DATA.medias){
-        o += `<option value="${m.id}" ${sel==m.id?"selected":""}>${esc(m.code)} (${esc(m.type)})</option>`;
-      }
-      return o;
-    }
-    function optionsType(sel){
-      return DATA.types_question.map(t =>
-        `<option value="${t.valeur}" ${sel==t.valeur?"selected":""}>${t.libelle}</option>`).join("");
-    }
-    function badgeMedia(q){
-      if(!q.media_id) return "";
-      const m = DATA.medias.find(x=>x.id==q.media_id);
-      return `<span class="badge media">⏵ ${esc(m?m.code:"média")}</span>`;
     }
 
     function elQuestion(q){
       const row = document.createElement("div");
-      row.className = "qrow"; row.draggable = true; row.dataset.id = q.id;
-      const typeLib = (DATA.types_question.find(t=>t.valeur===q.type)||{}).libelle || q.type;
+      row.className = "qrow" + (q.active ? "" : " inactive");
+      row.draggable = true; row.dataset.id = q.id;
       row.innerHTML = `
-        <div class="qtete">
-          <span class="poignee" title="Glisser">⠿</span>
-          <span class="lib">${esc(q.libelle) || "(sans libellé)"} <span class="qcode">${esc(q.code)}</span></span>
-          <span class="badge">${typeLib}</span>
-          ${q.portee==="profil"?'<span class="badge" style="color:var(--accent)">profil</span>':''}
-          ${q.obligatoire?'<span class="badge">obligatoire</span>':''}
-          ${q.active?'':'<span class="badge">inactive</span>'}
-          ${badgeMedia(q)}
-          <button class="btn" data-act="editer">Éditer</button>
-        </div>
-        <div class="panneau"></div>`;
-      row.querySelector('[data-act=editer]').onclick = () => basculerPanneau(row, q);
+        <span class="poignee" title="Glisser">⠿</span>
+        <span class="lib">${esc(q.libelle) || "(sans libellé)"} <span class="qcode">${esc(q.code)}</span></span>
+        <span class="badge">${esc(q.type)}</span>
+        ${q.media ? `<span class="badge media">⏵ ${esc(q.media)}</span>` : ""}
+        ${q.active ? "" : '<span class="badge">inactive</span>'}
+        <label class="opt"><input type="checkbox" data-k="saut" ${q.saut_de_page?"checked":""}> saut de page</label>
+        <a class="lien" href="/editeur/q/${q.id}/">Modifier</a>
+        <button class="btn danger" data-act="suppr">Suppr</button>`;
+      row.querySelector('[data-k=saut]').addEventListener("change", e =>
+        api("/editeur/question/", {id:q.id, saut_de_page:e.target.checked}));
+      row.querySelector('[data-act=suppr]').onclick = async () => {
+        if(!confirm("Supprimer cette question ?")) return;
+        await api(`/editeur/question/${q.id}/supprimer/`, {}); location.reload();
+      };
       brancherDnd(row, ".qrow");
       return row;
     }
 
-    function basculerPanneau(row, q){
-      const p = row.querySelector(".panneau");
-      if(p.classList.contains("ouvert")){ p.classList.remove("ouvert"); p.innerHTML=""; return; }
-      p.classList.add("ouvert");
-      p.innerHTML = `
-        <div class="rangee">
-          <div><label>Code (en-tête d'export)</label><input type="text" name="code" value="${esc(q.code)}"></div>
-          <div><label>Type</label><select name="type">${optionsType(q.type)}</select></div>
-          <div><label>Portée</label><select name="portee">
-            <option value="extrait" ${q.portee!=="profil"?"selected":""}>Par extrait</option>
-            <option value="profil" ${q.portee==="profil"?"selected":""}>Profil (une fois)</option>
-          </select></div>
-        </div>
-        <div><label>Libellé (question affichée)</label><input type="text" name="libelle" value="${esc(q.libelle)}"></div>
-        <div><label>Aide (optionnel)</label><input type="text" name="aide" value="${esc(q.aide)}"></div>
-        <div class="rangee">
-          <div><label>Média de la question</label><select name="media_id">${optionsMedia(q.media_id)}</select></div>
-          <div style="display:flex;align-items:flex-end;gap:18px">
-            <label class="opt"><input type="checkbox" name="obligatoire" ${q.obligatoire?'checked':''}> obligatoire</label>
-            <label class="opt"><input type="checkbox" name="active" ${q.active?'checked':''}> active</label>
-          </div>
-        </div>
-        <div class="cond" data-cond="echelle" style="display:none">
-          <div class="rangee">
-            <div><label>Min</label><input type="text" name="min_val" value="${q.min_val??''}"></div>
-            <div><label>Max</label><input type="text" name="max_val" value="${q.max_val??''}"></div>
-          </div>
-          <div class="rangee">
-            <div><label>Libellé borne basse</label><input type="text" name="label_min" value="${esc(q.label_min)}"></div>
-            <div><label>Libellé borne haute</label><input type="text" name="label_max" value="${esc(q.label_max)}"></div>
-          </div>
-        </div>
-        <div class="cond" data-cond="choix" style="display:none">
-          <label class="opt"><input type="checkbox" name="choix_multiple" ${q.choix_multiple?'checked':''}> plusieurs réponses possibles</label>
-          <div class="choix-liste"></div>
-          <button class="btn" data-act="add-choix">+ Option</button>
-        </div>
-        <div style="display:flex;gap:10px">
-          <button class="btn primaire" data-act="save">Enregistrer</button>
-          <button class="btn danger" data-act="suppr">Supprimer</button>
-        </div>`;
-      const sel = p.querySelector('[name=type]');
-      const maj = () => {
-        p.querySelector('[data-cond=echelle]').style.display = sel.value==="echelle"?"block":"none";
-        p.querySelector('[data-cond=choix]').style.display   = sel.value==="choix"?"block":"none";
-      };
-      sel.onchange = maj; maj();
-      const liste = p.querySelector(".choix-liste");
-      (q.choix||[]).forEach(c => liste.appendChild(elChoix(c)));
-      p.querySelector('[data-act=add-choix]').onclick = () => liste.appendChild(elChoix({}));
-      p.querySelector('[data-act=save]').onclick = () => enregistrerQuestion(q.id, p);
-      p.querySelector('[data-act=suppr]').onclick = () => supprimerQuestion(q.id);
-    }
-
-    function elChoix(c){
-      const d = document.createElement("div");
-      d.className = "choix-row";
-      d.innerHTML = `<input type="text" placeholder="valeur" value="${esc(c.valeur)}" data-k="valeur">
-        <input type="text" placeholder="libellé affiché" value="${esc(c.libelle)}" data-k="libelle">
-        <button class="btn danger" title="Retirer">✕</button>`;
-      d.dataset.id = c.id || "";
-      d.querySelector("button").onclick = () => d.remove();
-      return d;
-    }
-
-    async function enregistrerQuestion(id, p){
-      const val = n => { const e=p.querySelector(`[name=${n}]`); return e?e.value:undefined; };
-      const chk = n => { const e=p.querySelector(`[name=${n}]`); return e?e.checked:undefined; };
-      const choix = [...p.querySelectorAll(".choix-row")].map(r => ({
-        id: r.dataset.id || undefined,
-        valeur: r.querySelector('[data-k=valeur]').value,
-        libelle: r.querySelector('[data-k=libelle]').value,
-      }));
-      await api("/editeur/question/", {
-        id, code:val("code"), libelle:val("libelle"), aide:val("aide"), type:val("type"), portee:val("portee"),
-        obligatoire:chk("obligatoire"), active:chk("active"), media_id:val("media_id")||null,
-        min_val:val("min_val"), max_val:val("max_val"), label_min:val("label_min"), label_max:val("label_max"),
-        choix_multiple:chk("choix_multiple"), choix,
-      });
-      location.reload();
-    }
-    async function supprimerQuestion(id){
-      if(!confirm("Supprimer cette question ?")) return;
-      await api(`/editeur/question/${id}/supprimer/`, {});
-      location.reload();
-    }
-
     function elGroupe(g){
       const div = document.createElement("div");
-      div.className = "groupe"; div.dataset.id = g.id;
+      div.className = "groupe" + (g.portee==="profil" ? " profil" : "");
+      div.dataset.id = g.id;
       div.innerHTML = `
         <div class="ghead">
           <span class="poignee" title="Glisser le groupe">⠿</span>
           <input class="titre" value="${esc(g.titre)}" placeholder="Titre du groupe">
-          ${g.nouvelle_page?'<span class="pageflag">nouvelle page</span>':''}
+          <select data-g="portee" title="Portée">
+            <option value="standard" ${g.portee!=="profil"?"selected":""}>Standard (tiré)</option>
+            <option value="profil" ${g.portee==="profil"?"selected":""}>Profil (une fois)</option>
+          </select>
           <button class="btn danger" data-act="suppr-g">Supprimer</button>
         </div>
         <div class="gcorps">
           <textarea class="gconsigne" placeholder="Consigne / introduction (optionnel)">${esc(g.consigne)}</textarea>
-          <div>
-            <label class="opt"><input type="checkbox" data-g="nouvelle_page" ${g.nouvelle_page?'checked':''}> commence une nouvelle page</label>
-            <label class="opt"><input type="checkbox" data-g="active" ${g.active?'checked':''}> groupe actif</label>
+          <div class="grangee">
+            <label class="opt"><input type="checkbox" data-g="inclure_tirage" ${g.inclure_tirage?"checked":""}> inclure dans le tirage</label>
+            <label class="opt"><input type="checkbox" data-g="active" ${g.active?"checked":""}> groupe actif</label>
+            <label class="opt">Vidéo du groupe : <select data-g="media">${optionsMedia(g.media_id)}</select></label>
           </div>
           <div class="qlist" data-groupe="${g.id}"></div>
-          <button class="btn" data-act="add-q">+ Question</button>
+          <a class="lien" href="/editeur/q/nouveau/?groupe=${g.id}">+ Question</a>
         </div>`;
       const head = div.querySelector(".ghead");
-      // drag du groupe via la poignée
-      div.draggable = false;
       head.querySelector(".poignee").addEventListener("mousedown", ()=> div.draggable=true);
       div.addEventListener("dragend", ()=> div.draggable=false);
       brancherDnd(div, ".groupe");
 
-      const sauverG = () => api("/editeur/groupe/", {
+      const sauverG = (reload=false) => api("/editeur/groupe/", {
         id:g.id, titre:div.querySelector(".titre").value, consigne:div.querySelector(".gconsigne").value,
-        nouvelle_page:div.querySelector('[data-g=nouvelle_page]').checked,
+        portee:div.querySelector('[data-g=portee]').value,
+        media_id:div.querySelector('[data-g=media]').value || null,
+        inclure_tirage:div.querySelector('[data-g=inclure_tirage]').checked,
         active:div.querySelector('[data-g=active]').checked,
-      });
-      div.querySelector(".titre").addEventListener("change", sauverG);
-      div.querySelector(".gconsigne").addEventListener("change", sauverG);
-      div.querySelector('[data-g=nouvelle_page]').addEventListener("change", ()=>sauverG().then(()=>location.reload()));
-      div.querySelector('[data-g=active]').addEventListener("change", sauverG);
+      }).then(()=>{ if(reload) location.reload(); });
+      div.querySelector(".titre").addEventListener("change", ()=>sauverG());
+      div.querySelector(".gconsigne").addEventListener("change", ()=>sauverG());
+      div.querySelector('[data-g=portee]').addEventListener("change", ()=>sauverG(true));
+      div.querySelector('[data-g=media]').addEventListener("change", ()=>sauverG());
+      div.querySelector('[data-g=inclure_tirage]').addEventListener("change", ()=>sauverG());
+      div.querySelector('[data-g=active]').addEventListener("change", ()=>sauverG());
       div.querySelector('[data-act=suppr-g]').onclick = async () => {
         if(!confirm("Supprimer ce groupe ? Ses questions repasseront « sans groupe ».")) return;
         await api(`/editeur/groupe/${g.id}/supprimer/`, {}); location.reload();
-      };
-      div.querySelector('[data-act=add-q]').onclick = async () => {
-        await api("/editeur/question/", {groupe_id:g.id}); location.reload();
       };
       const liste = div.querySelector(".qlist");
       g.questions.forEach(q => liste.appendChild(elQuestion(q)));
@@ -274,15 +200,14 @@
       return div;
     }
 
-    /* ---------- Drag & drop ---------- */
+    /* ---- Drag & drop ---- */
     let drag = null;
     function brancherDnd(el, selecteur){
       el.addEventListener("dragstart", e => { drag={el, sel:selecteur}; el.classList.add("dragging"); e.stopPropagation(); });
       el.addEventListener("dragend", () => { el.classList.remove("dragging"); drag=null; sauverOrdre(); });
     }
     function apres(container, y, selecteur){
-      const els = [...container.querySelectorAll(`${selecteur}:not(.dragging)`)]
-        .filter(c => c.parentElement === container);
+      const els = [...container.querySelectorAll(`${selecteur}:not(.dragging)`)].filter(c => c.parentElement === container);
       let best = {offset:-Infinity, el:null};
       for(const c of els){
         const box = c.getBoundingClientRect();
@@ -319,7 +244,7 @@
       await api("/editeur/ordre/", {groupes, sans_groupe:sans});
     }
 
-    /* ---------- Init ---------- */
+    /* ---- Init ---- */
     function rendre(){
       const cont = $("#groupes"); cont.innerHTML="";
       DATA.groupes.forEach(g => cont.appendChild(elGroupe(g)));
@@ -330,6 +255,21 @@
     }
     $("#add-groupe").onclick = async () => { await api("/editeur/groupe/", {titre:"Nouveau groupe"}); location.reload(); };
     rendre();
+
+    (function(){
+      var b = document.getElementById('theme-toggle'); if(!b) return;
+      var mq = window.matchMedia ? matchMedia('(prefers-color-scheme: light)') : null;
+      function eff(){ var a = document.documentElement.getAttribute('data-theme'); return a || ((mq && mq.matches) ? 'light' : 'dark'); }
+      function maj(){ b.querySelector('.t-icon').textContent = eff()==='light' ? '☀️' : '🌙'; }
+      maj();
+      b.addEventListener('click', function(){
+        var t = eff()==='light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+        try { localStorage.setItem('theme', t); } catch(e){}
+        maj();
+      });
+      if (mq && mq.addEventListener) mq.addEventListener('change', maj);
+    })();
   </script>
 </body>
 </html>

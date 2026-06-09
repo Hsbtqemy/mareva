@@ -1,0 +1,66 @@
+{% extends "etude/editeur_base.html" %}
+{% block titre %}Médias{% endblock %}
+{% block nav_medias %}actif{% endblock %}
+
+{% block contenu %}
+  <h1>Médias</h1>
+  <p class="aide-champ">Les fichiers sont stockés sur votre serveur (dossier <code>media/</code>)
+     et servis de façon protégée. Téléversez-les ci-dessous (jusqu'à 1 Go).</p>
+
+  <div class="section">
+    <h2>Téléverser un média</h2>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {% if upload.non_field_errors %}<div class="msg error">{{ upload.non_field_errors }}</div>{% endif %}
+      <div class="champ-bloc"><label>Fichier vidéo ou audio</label>{{ upload.fichier }}{{ upload.fichier.errors }}</div>
+      <div class="champ-bloc"><label>Sous-titres .vtt (optionnel)</label>{{ upload.vtt }}{{ upload.vtt.errors }}</div>
+      <div class="ligne">
+        <div class="champ-bloc"><label>Code (optionnel — sinon dérivé du nom de fichier)</label>{{ upload.code }}{{ upload.code.errors }}</div>
+        <div class="champ-bloc"><label>Titre interne (optionnel)</label>{{ upload.titre }}</div>
+      </div>
+      <p class="aide-champ">Le type (vidéo/audio) est détecté automatiquement d'après l'extension.</p>
+      <div class="actions"><button type="submit" class="btn primaire" name="televerser" value="1">Téléverser</button></div>
+    </form>
+  </div>
+
+  <details class="section">
+    <summary style="cursor:pointer;color:var(--doux)">Avancé : référencer un fichier déjà présent sur le serveur (chemin)</summary>
+    <form method="post" style="margin-top:12px">
+      {% csrf_token %}
+      <div class="ligne">
+        <div class="champ-bloc"><label>Code</label>{{ form.code }}{{ form.code.errors }}</div>
+        <div class="champ-bloc"><label>Type</label>{{ form.type_media }}</div>
+      </div>
+      <div class="champ-bloc"><label>Chemin relatif (ex. videos/clip.mp4)</label>{{ form.fichier }}{{ form.fichier.errors }}</div>
+      <div class="ligne">
+        <div class="champ-bloc"><label>Sous-titres VTT (optionnel)</label>{{ form.vtt }}</div>
+        <div class="champ-bloc"><label>Titre interne (optionnel)</label>{{ form.titre }}</div>
+      </div>
+      <div class="actions"><button type="submit" class="btn">Référencer</button></div>
+    </form>
+  </details>
+
+  <div class="section">
+    <h2>Médias existants</h2>
+    {% if medias %}
+      <table class="grille">
+        <thead><tr><th>Code</th><th>Type</th><th>Fichier</th><th></th></tr></thead>
+        <tbody>
+          {% for m in medias %}
+            <tr>
+              <td>{{ m.code }}</td><td>{{ m.get_type_media_display }}</td><td>{{ m.fichier }}</td>
+              <td>
+                <form method="post" action="{% url 'editeur_media_supprimer' m.id %}"
+                      onsubmit="return confirm('Supprimer ce média ? Les questions/groupes qui l\'utilisent seront déliés.');">
+                  {% csrf_token %}<button type="submit" class="btn danger">Supprimer</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="aide-champ">Aucun média pour l'instant.</p>
+    {% endif %}
+  </div>
+{% endblock %}
