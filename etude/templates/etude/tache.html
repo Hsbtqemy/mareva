@@ -8,8 +8,9 @@
 
   <div class="tache {% if groupe.media %}deux-volets{% endif %}">
     {% if groupe.media %}
-      <aside class="volet-video">
+      <aside class="volet-video{% if groupe.media.type_media == 'audio' %} volet-audio{% endif %}">
         {% if groupe.media.type_media == "audio" %}
+          <span class="label-audio">{{ groupe.titre|default:"Enregistrement" }}</span>
           <audio controls preload="metadata">
             <source src="{% url 'media_question' 'fichier' groupe.media.code %}">
             {% if groupe.media.vtt %}<track default kind="subtitles" srclang="fr" label="Français" src="{% url 'media_question' 'vtt' groupe.media.code %}">{% endif %}

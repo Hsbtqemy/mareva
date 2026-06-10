@@ -1,4 +1,3 @@
-{# Styles partagés pour le rendu des questions (tache + profil). #}
 <style>
   video, audio { width: 100%; display: block; }
   video { background: #000; }
@@ -7,7 +6,7 @@
   /* Mode plein écran : casse la limite 760px du cadre. */
   .cadre-plein { max-width: 100% !important; padding: 0 !important; }
 
-  /* Deux volets plein écran : vidéo à gauche fixe, questions à droite défilantes. */
+  /* Deux volets plein écran : média à gauche fixe, questions à droite défilantes. */
   .tache.deux-volets {
     display: grid;
     grid-template-columns: 55% 1fr;
@@ -26,28 +25,44 @@
     flex: 1;
     min-height: 0;
     object-fit: contain;
-    border-radius: 0;
   }
-  .volet-video audio {
-    margin: auto 24px;
-    border-radius: var(--rayon);
+  /* Audio : fond neutre, lecteur centré avec contexte visuel. */
+  .volet-video.volet-audio {
+    background: var(--fond);
+    border-right: 1px solid var(--bord);
+    justify-content: center;
+    gap: 16px;
+    padding: 40px 32px;
   }
+  .volet-audio .label-audio {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--texte-doux); text-align: center;
+  }
+  .volet-audio audio { margin: 0; }
+
   .volet-questions {
     height: 100vh;
     overflow-y: auto;
-    padding: 36px 40px 80px;
+    padding: 40px 44px 80px;
     scroll-behavior: smooth;
   }
 
-  @media (max-width: 800px) {
-    .cadre-plein { padding: 0 !important; }
-    .tache.deux-volets { grid-template-columns: 1fr; height: auto; }
-    .volet-video { position: static; height: auto; min-height: 240px; }
-    .volet-video video { flex: none; height: 240px; }
-    .volet-questions { height: auto; overflow-y: visible; padding: 24px; }
+  /* Séparation visuelle entre consigne et questions. */
+  .volet-questions .consigne {
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--bord);
   }
 
-  /* HTML riche dans la consigne (gras, paragraphes, listes, sous-titres). */
+  @media (max-width: 800px) {
+    .tache.deux-volets { grid-template-columns: 1fr; height: auto; }
+    .volet-video { position: static; height: 260px; }
+    .volet-video.volet-audio { height: auto; padding: 24px; }
+    .volet-questions { height: auto; overflow-y: visible; padding: 24px 20px 60px; }
+    .volet-questions .consigne { margin-bottom: 20px; padding-bottom: 16px; }
+  }
+
+  /* HTML riche dans la consigne (Markdown rendu). */
   .consigne { font-size: 14px; line-height: 1.65; color: var(--texte-doux); }
   .consigne p { margin: 0 0 10px; }
   .consigne p:last-child { margin-bottom: 0; }
@@ -55,13 +70,13 @@
   .consigne h2, .consigne h3, .consigne h4 {
     font-size: 11px; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.12em; color: var(--texte-doux);
-    margin: 20px 0 6px; padding-top: 16px; border-top: 1px solid var(--bord);
+    margin: 18px 0 6px;
   }
-  .consigne h2:first-child, .consigne h3:first-child, .consigne h4:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .consigne h2:first-child, .consigne h3:first-child, .consigne h4:first-child { margin-top: 0; }
   .consigne ul, .consigne ol { margin: 0 0 10px; padding-left: 20px; }
   .consigne li { margin-bottom: 4px; }
 
-  .formulaire { display: flex; flex-direction: column; gap: 28px; margin-top: 8px; }
+  .formulaire { display: flex; flex-direction: column; gap: 28px; margin-top: 0; }
   .flux { display: flex; flex-direction: column; }
   .ecran { display: flex; flex-direction: column; gap: 28px; }
   .nav-ecrans { display: flex; align-items: center; gap: 14px; margin-top: 28px; }

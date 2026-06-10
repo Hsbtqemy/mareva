@@ -1,10 +1,11 @@
 {% extends "etude/base.html" %}
+{% load md_extras %}
 {% block titre %}{{ config.nom_etude }}{% endblock %}
 
 {% block contenu %}
   <p class="eyebrow">{{ config.nom_etude }}</p>
   <h1>Quelques informations</h1>
-  {% if config.intro_profil %}<div class="intro">{{ config.intro_profil|linebreaksbr }}</div>{% endif %}
+  {% if config.intro_profil %}<div class="intro consigne">{{ config.intro_profil|markdown }}</div>{% endif %}
 
   {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
 
