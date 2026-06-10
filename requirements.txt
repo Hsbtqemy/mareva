@@ -1,1 +1,2 @@
-Django>=5.0
+Django>=5.0,<7.0
+gunicorn>=21,<24      # serveur WSGI de production (voir deploy/)

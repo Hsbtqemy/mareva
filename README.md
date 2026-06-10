@@ -110,6 +110,10 @@ colonne — le schéma clé-valeur s'en charge.
 
 ## Déploiement (production)
 
+> **Fichiers prêts à l'emploi dans [`deploy/`](deploy/)** : `nginx.conf`,
+> `gunicorn.conf.py`, `etude.service` (systemd), `.env.example`, et une checklist
+> pas-à-pas ([`deploy/README.md`](deploy/README.md)). Le résumé ci-dessous reprend les points clés.
+
 1. `DJANGO_DEBUG=0`, `DJANGO_SECRET_KEY=...`, `DJANGO_ALLOWED_HOSTS=mondomaine.fr`
    en variables d'environnement.
 2. Servir via gunicorn/uwsgi derrière **Nginx**, en **HTTPS**. En `DEBUG=False`,

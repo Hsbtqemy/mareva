@@ -1,0 +1,30 @@
+# Service systemd pour faire tourner l'application (Gunicorn).
+# Adapter les chemins / l'utilisateur, puis :
+#   sudo cp deploy/etude.service /etc/systemd/system/etude.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now etude
+#   sudo systemctl status etude
+
+[Unit]
+Description=Outil d'etude (Gunicorn)
+After=network.target
+
+[Service]
+# Utilisateur/groupe dédiés (à créer ; group www-data pour partager avec Nginx).
+User=etude
+Group=www-data
+
+# Racine du projet (où se trouve manage.py).
+WorkingDirectory=/chemin/absolu/vers/le-projet
+
+# Variables d'environnement (copier deploy/.env.example en .env).
+EnvironmentFile=/chemin/absolu/vers/le-projet/.env
+
+# Gunicorn depuis le venv du projet.
+ExecStart=/chemin/absolu/vers/le-projet/.venv/bin/gunicorn -c deploy/gunicorn.conf.py config.wsgi
+
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
