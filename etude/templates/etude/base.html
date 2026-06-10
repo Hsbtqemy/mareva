@@ -106,7 +106,7 @@
     {% if user.is_staff %}<a class="lien-editeur" href="{% url 'editeur' %}" title="Éditeur du questionnaire">⚙ Éditeur</a>{% endif %}
     <a class="lien-editeur" href="{% url 'admin:index' %}" title="Administration">⚑ Admin</a>
   </div>
-  <main class="cadre">
+  <main class="cadre{% block cadre_extra %}{% endblock %}">
     {% block contenu %}{% endblock %}
   </main>
   <script>

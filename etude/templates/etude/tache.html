@@ -1,5 +1,7 @@
 {% extends "etude/base.html" %}
+{% load md_extras %}
 {% block titre %}{{ config.nom_etude }}{% endblock %}
+{% block cadre_extra %}{% if groupe.media %} cadre-plein{% endif %}{% endblock %}
 
 {% block contenu %}
   {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
@@ -23,7 +25,7 @@
 
     <div class="volet-questions">
       {% if groupe.titre %}<p class="eyebrow">{{ groupe.titre }}</p>{% endif %}
-      {% if groupe.consigne %}<div class="intro consigne">{{ groupe.consigne|safe }}</div>{% endif %}
+      {% if groupe.consigne %}<div class="intro consigne">{{ groupe.consigne|markdown }}</div>{% endif %}
 
       <form method="post" action="{% url 'soumettre' %}" class="formulaire" id="form-groupe">
         {% csrf_token %}

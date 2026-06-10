@@ -1,19 +1,50 @@
 {# Styles partagés pour le rendu des questions (tache + profil). #}
 <style>
-  video, audio { width: 100%; border-radius: var(--rayon); display: block; }
-  video { background: #000; border: 1px solid var(--bord); }
-  audio { margin-top: 4px; }
+  video, audio { width: 100%; display: block; }
+  video { background: #000; }
+  audio { border-radius: var(--rayon); }
 
-  /* Deux volets : vidéo collée à gauche, questions à droite. */
-  .tache.deux-volets { display: grid; grid-template-columns: minmax(280px, 40%) 1fr; gap: 40px; align-items: start; }
-  .volet-video { position: sticky; top: 16px; }
-  /* En paysage : volet droit défile seul, lecteur toujours visible. */
-  @media (min-width: 801px) {
-    .volet-questions { max-height: calc(100vh - 48px); overflow-y: auto; padding-right: 8px; scroll-behavior: smooth; }
+  /* Mode plein écran : casse la limite 760px du cadre. */
+  .cadre-plein { max-width: 100% !important; padding: 0 !important; }
+
+  /* Deux volets plein écran : vidéo à gauche fixe, questions à droite défilantes. */
+  .tache.deux-volets {
+    display: grid;
+    grid-template-columns: 55% 1fr;
+    height: 100vh;
   }
+  .volet-video {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    overflow: hidden;
+  }
+  .volet-video video {
+    flex: 1;
+    min-height: 0;
+    object-fit: contain;
+    border-radius: 0;
+  }
+  .volet-video audio {
+    margin: auto 24px;
+    border-radius: var(--rayon);
+  }
+  .volet-questions {
+    height: 100vh;
+    overflow-y: auto;
+    padding: 36px 40px 80px;
+    scroll-behavior: smooth;
+  }
+
   @media (max-width: 800px) {
-    .tache.deux-volets { grid-template-columns: 1fr; gap: 24px; }
-    .volet-video { position: static; }
+    .cadre-plein { padding: 0 !important; }
+    .tache.deux-volets { grid-template-columns: 1fr; height: auto; }
+    .volet-video { position: static; height: auto; min-height: 240px; }
+    .volet-video video { flex: none; height: 240px; }
+    .volet-questions { height: auto; overflow-y: visible; padding: 24px; }
   }
 
   /* HTML riche dans la consigne (gras, paragraphes, listes, sous-titres). */
