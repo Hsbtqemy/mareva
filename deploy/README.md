@@ -71,3 +71,9 @@ pour que la limite soit globale.
 - `DJANGO_DEBUG=0`, `SECRET_KEY` unique et secrète, `ALLOWED_HOSTS` restreint.
 - HTTPS actif (certbot). Le dossier `media/` n'est **jamais** servi directement.
 - Sauvegarder `db.sqlite3` + `media/` régulièrement (cf. étape 8).
+
+> **HTTPS automatique côté Django** : hors DEBUG, le projet active seul les
+> cookies `Secure`, l'en-tête de proxy (`X-Forwarded-Proto`) et
+> `CSRF_TRUSTED_ORIGINS` = `https://<chaque domaine de ALLOWED_HOSTS>`. Rien à
+> régler de plus que `DJANGO_ALLOWED_HOSTS` pour que les formulaires (consentement,
+> soumission, éditeur) fonctionnent en HTTPS.

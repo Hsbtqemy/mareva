@@ -29,6 +29,19 @@ ACCES_MAX_SESSION = int(os.environ.get("ACCES_MAX_SESSION", "8"))
 ACCES_MAX_IP = int(os.environ.get("ACCES_MAX_IP", "100"))
 ACCES_FENETRE = int(os.environ.get("ACCES_FENETRE", "600"))  # secondes
 
+# --- Sécurité en production (HTTPS derrière Nginx) ---
+# Activé hors DEBUG. Indispensable pour que les POST (consentement, soumission,
+# éditeur) passent en HTTPS et pour des cookies sécurisés.
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Django 4+ exige le schéma ; dérivé des domaines autorisés.
+    CSRF_TRUSTED_ORIGINS = [
+        f"https://{h.strip()}" for h in ALLOWED_HOSTS
+        if h.strip() and h.strip() not in ("localhost", "127.0.0.1", "*")
+    ]
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
