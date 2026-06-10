@@ -342,12 +342,47 @@ def resultats(request):
         Groupe.objects.order_by("ordre", "id")
         .annotate(nb_termines=Count("passages", filter=Q(passages__fin__isnull=False)))
     )
+    participants = (
+        Participant.objects.order_by("-cree_le")
+        .annotate(nb_passages_termines=Count("passages", filter=Q(passages__fin__isnull=False)))
+        .select_related("code_acces")
+    )
     return render(request, "etude/editeur_resultats.html", {
         "nb_participants": Participant.objects.count(),
         "nb_consentements": Participant.objects.filter(consentement=True).count(),
         "nb_passages": Passage.objects.filter(fin__isnull=False).count(),
         "groupes": groupes,
+        "participants": participants,
     })
+
+
+@staff_member_required
+@require_POST
+def participants_supprimer(request):
+    """Supprime les participants cochés (et leurs passages/réponses en cascade)."""
+    ids = request.POST.getlist("ids")
+    if ids:
+        Participant.objects.filter(pk__in=ids).delete()
+        _recalculer_nb_evaluations()
+        messages.success(request, f"{len(ids)} participant(s) supprimé(s).")
+    return redirect("editeur_resultats")
+
+
+@staff_member_required
+@require_POST
+def participants_vider(request):
+    """Supprime tous les participants (et leurs passages/réponses en cascade)."""
+    n = Participant.objects.count()
+    Participant.objects.all().delete()
+    Groupe.objects.update(nb_evaluations=0)
+    messages.success(request, f"Toutes les données effacées ({n} participant(s)).")
+    return redirect("editeur_resultats")
+
+
+def _recalculer_nb_evaluations():
+    from django.db.models import Count, Q
+    for g in Groupe.objects.annotate(n=Count("passages", filter=Q(passages__fin__isnull=False))):
+        Groupe.objects.filter(pk=g.pk).update(nb_evaluations=g.n)
 
 
 @staff_member_required

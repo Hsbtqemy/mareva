@@ -39,6 +39,57 @@
       </tbody>
     </table>
   </div>
+
+  <div class="section">
+    <h2>Participants</h2>
+    {% if participants %}
+      <form method="post" action="{% url 'editeur_participants_supprimer' %}" id="form-suppr">
+        {% csrf_token %}
+        <table class="grille-res">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="tout-cocher" title="Tout cocher/décocher"></th>
+              <th>Identifiant</th>
+              <th>Code / note</th>
+              <th>Consentement</th>
+              <th>Passages terminés</th>
+              <th>Inscrit le</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in participants %}
+            <tr>
+              <td><input type="checkbox" name="ids" value="{{ p.pk }}" class="case-p"></td>
+              <td class="mono">P-{{ p.jeton|slice:":8" }}</td>
+              <td class="cell-note">
+                {% if p.code_acces %}
+                  <span class="badge-indiv">{{ p.code_acces.code }}</span>
+                  {% if p.code_acces.note %}<span class="note-code"> {{ p.code_acces.note }}</span>{% endif %}
+                {% else %}
+                  <span class="doux">collectif</span>
+                {% endif %}
+              </td>
+              <td>{% if p.consentement %}✓{% else %}<span class="doux">—</span>{% endif %}</td>
+              <td>{{ p.nb_passages_termines }}</td>
+              <td class="doux">{{ p.cree_le|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="barre-suppr">
+          <button type="submit" class="btn danger" id="btn-suppr-sel" disabled>Supprimer la sélection</button>
+          <span class="doux sel-count" id="sel-count"></span>
+        </div>
+      </form>
+
+      <form method="post" action="{% url 'editeur_participants_vider' %}" id="form-vider" style="margin-top:10px">
+        {% csrf_token %}
+        <button type="submit" class="btn danger" id="btn-vider">⚠ Tout supprimer</button>
+      </form>
+    {% else %}
+      <p class="aide-champ">Aucun participant enregistré.</p>
+    {% endif %}
+  </div>
 {% endblock %}
 
 {% block style %}
@@ -48,6 +99,52 @@
   .stat .n { font-size: 28px; font-weight: 700; }
   .stat .l { font-size: 13px; color: var(--doux); }
   table.grille-res { width: 100%; border-collapse: collapse; font-size: 14px; }
-  table.grille-res th { text-align: left; font-size: 12px; color: var(--doux); font-weight: 500; padding: 6px 8px; }
+  table.grille-res th { text-align: left; font-size: 12px; color: var(--doux); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--bord); }
   table.grille-res td { padding: 6px 8px; border-top: 1px solid var(--bord); }
+  .mono { font-family: monospace; font-size: 13px; }
+  .doux { color: var(--texte-doux, #888); }
+  .cell-note { font-size: 13px; }
+  .note-code { color: var(--texte-doux, #888); }
+  .barre-suppr { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .sel-count { font-size: 13px; color: var(--texte-doux, #888); }
+  .badge-indiv { display:inline-block; font-size:11px; font-weight:600; border-radius:4px; padding:2px 6px;
+    background:rgba(160,160,160,.12); color:var(--texte-doux,#888); }
+{% endblock %}
+
+{% block script %}
+<script>
+(function(){
+  const cases = () => [...document.querySelectorAll('.case-p')];
+  const toutCocher = document.getElementById('tout-cocher');
+  const btnSuppr = document.getElementById('btn-suppr-sel');
+  const selCount = document.getElementById('sel-count');
+  const btnVider = document.getElementById('btn-vider');
+
+  function maj(){
+    const coches = cases().filter(c => c.checked);
+    const n = coches.length;
+    btnSuppr.disabled = n === 0;
+    selCount.textContent = n > 0 ? `${n} sélectionné(s)` : '';
+    toutCocher.indeterminate = n > 0 && n < cases().length;
+    toutCocher.checked = n > 0 && n === cases().length;
+  }
+
+  toutCocher && toutCocher.addEventListener('change', () => {
+    cases().forEach(c => c.checked = toutCocher.checked);
+    maj();
+  });
+
+  document.querySelectorAll('.case-p').forEach(c => c.addEventListener('change', maj));
+
+  btnSuppr && btnSuppr.addEventListener('click', e => {
+    const n = cases().filter(c => c.checked).length;
+    if(!confirm(`Supprimer ${n} participant(s) et toutes leurs réponses ? Cette action est irréversible.`)) e.preventDefault();
+  });
+
+  btnVider && btnVider.addEventListener('click', e => {
+    const total = cases().length;
+    if(!confirm(`Supprimer la totalité des ${total} participants et toutes leurs réponses ? Cette action est irréversible.`)) e.preventDefault();
+  });
+})();
+</script>
 {% endblock %}

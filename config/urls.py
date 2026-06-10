@@ -34,4 +34,6 @@ urlpatterns = [
     path("editeur/resultats/", editeur.resultats, name="editeur_resultats"),
     path("editeur/export/passages/", editeur.export_passages, name="editeur_export_passages"),
     path("editeur/export/participants/", editeur.export_participants, name="editeur_export_participants"),
+    path("editeur/participants/supprimer/", editeur.participants_supprimer, name="editeur_participants_supprimer"),
+    path("editeur/participants/vider/", editeur.participants_vider, name="editeur_participants_vider"),
 ]
