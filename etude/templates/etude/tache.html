@@ -23,7 +23,7 @@
 
     <div class="volet-questions">
       {% if groupe.titre %}<p class="eyebrow">{{ groupe.titre }}</p>{% endif %}
-      {% if groupe.consigne %}<p class="intro">{{ groupe.consigne|linebreaksbr }}</p>{% endif %}
+      {% if groupe.consigne %}<div class="intro consigne">{{ groupe.consigne|safe }}</div>{% endif %}
 
       <form method="post" action="{% url 'soumettre' %}" class="formulaire" id="form-groupe">
         {% csrf_token %}

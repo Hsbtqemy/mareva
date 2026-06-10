@@ -5,12 +5,26 @@
   audio { margin-top: 4px; }
 
   /* Deux volets : vidéo collée à gauche, questions à droite. */
-  .tache.deux-volets { display: grid; grid-template-columns: minmax(280px, 42%) 1fr; gap: 32px; align-items: start; }
-  .volet-video { position: sticky; top: 24px; }
-  @media (max-width: 720px) {
-    .tache.deux-volets { grid-template-columns: 1fr; }
+  .tache.deux-volets { display: grid; grid-template-columns: minmax(280px, 40%) 1fr; gap: 40px; align-items: start; }
+  .volet-video { position: sticky; top: 16px; }
+  @media (max-width: 800px) {
+    .tache.deux-volets { grid-template-columns: 1fr; gap: 24px; }
     .volet-video { position: static; }
   }
+
+  /* HTML riche dans la consigne (gras, paragraphes, listes, sous-titres). */
+  .consigne { font-size: 14px; line-height: 1.65; color: var(--texte-doux); }
+  .consigne p { margin: 0 0 10px; }
+  .consigne p:last-child { margin-bottom: 0; }
+  .consigne strong, .consigne b { font-weight: 600; color: var(--texte); }
+  .consigne h2, .consigne h3, .consigne h4 {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--texte-doux);
+    margin: 20px 0 6px; padding-top: 16px; border-top: 1px solid var(--bord);
+  }
+  .consigne h2:first-child, .consigne h3:first-child, .consigne h4:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .consigne ul, .consigne ol { margin: 0 0 10px; padding-left: 20px; }
+  .consigne li { margin-bottom: 4px; }
 
   .formulaire { display: flex; flex-direction: column; gap: 28px; margin-top: 8px; }
   .flux { display: flex; flex-direction: column; }
