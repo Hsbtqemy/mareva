@@ -191,8 +191,12 @@ class Question(models.Model):
 class Choix(models.Model):
     """Option d'une question (choix / cartes) ou catégorie (colonne d'une matrice)."""
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="choix")
-    valeur = models.CharField(max_length=80, help_text="Valeur enregistrée (ex. oui, AO01).")
-    libelle = models.CharField(max_length=200, help_text="Texte affiché (ex. Oui, tout à fait).")
+    valeur = models.CharField(
+        max_length=80, blank=True,
+        help_text="Valeur enregistrée à l'export. Laisser vide = reprend le libellé "
+                  "(utile surtout pour des codes, ex. AO01).",
+    )
+    libelle = models.CharField(max_length=200, help_text="Texte affiché au participant (ex. Oui, tout à fait).")
     description = models.CharField(max_length=300, blank=True, help_text="Détail affiché sous le libellé (cartes).")
     ordre = models.IntegerField(default=0)
 
@@ -201,6 +205,11 @@ class Choix(models.Model):
 
     def __str__(self):
         return f"{self.question.code} → {self.libelle}"
+
+    def save(self, *args, **kwargs):
+        if not self.valeur and self.libelle:
+            self.valeur = self.libelle[:80]
+        super().save(*args, **kwargs)
 
 
 class SousQuestion(models.Model):

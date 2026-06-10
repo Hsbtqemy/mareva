@@ -167,6 +167,16 @@ class PaginationTest(TestCase):
                          {"a": "1", "b": "2"})
 
 
+class ChoixValeurTest(TestCase):
+    def test_valeur_reprend_le_libelle_si_vide(self):
+        g = _groupe("G")
+        q = _question(g, "q", type=Question.CHOIX)
+        c = Choix.objects.create(question=q, libelle="Manger")  # valeur laissée vide
+        self.assertEqual(c.valeur, "Manger")
+        c2 = Choix.objects.create(question=q, valeur="AO01", libelle="Socializer")
+        self.assertEqual(c2.valeur, "AO01")  # valeur explicite conservée
+
+
 class MatriceTest(TestCase):
     def setUp(self):
         CodeAcces.objects.create(code="e")

@@ -65,13 +65,13 @@
     .section{border:1px solid var(--bord);border-radius:var(--rayon);padding:16px;margin:18px 0;background:var(--surface)}
     .section h2{font-size:15px;margin:0 0 12px}
     .frow{display:flex;gap:8px;align-items:center;margin-bottom:6px}
-    .frow .col{flex:1;min-width:0}
-    .frow .col-lg{flex:2}
+    .frow .col{flex:1 1 0;min-width:0}
+    .frow .col-lg{flex:2 1 0;min-width:0}
     .frow .col-ordre{flex:0 0 64px}
-    .frow .col-act{flex:0 0 auto}
+    .frow .col-act{flex:0 0 40px;text-align:center}
     .frow .champ{width:100%;padding:7px 9px}
     .frow.entete{margin-bottom:2px}
-    .frow.entete span{font-size:12px;color:var(--doux)}
+    .frow.entete span{font-size:12px;color:var(--doux);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .actions{display:flex;gap:12px;margin-top:24px}
     {% block style %}{% endblock %}
   </style>
