@@ -46,11 +46,11 @@
       <div class="champ-bloc"><label>Longueur indicative (caractères)</label>{{ form.longueur }}</div>
     </div>
 
-    <div class="section" data-types="choix cartes matrice">
+    <div class="section" data-types="choix cartes matrice dragdrop">
       <h2 id="titre-options">Options</h2>
       <label class="opt" data-types="choix cartes">{{ form.choix_multiple }} Plusieurs réponses possibles</label>
       {{ choix.management_form }}
-      <div class="frow entete"><span class="col-ordre">Ordre</span><span class="col">Valeur</span><span class="col col-lg">Libellé</span><span class="col col-lg col-desc">Description (cartes)</span><span class="col-act"></span></div>
+      <div class="frow entete"><span class="col-ordre">Ordre</span><span class="col">Valeur</span><span class="col col-lg">Libellé</span><span class="col col-lg col-desc">Détail (sous le libellé)</span><span class="col-act"></span></div>
       <p class="aide-champ">« Valeur » = ce qui est exporté ; laissée vide, elle reprend le libellé. Ne la remplir que pour un code d'analyse (ex. AO01).</p>
       <div id="choix-rows">
         {% for f in choix %}
@@ -117,7 +117,9 @@
       el.style.display = el.dataset.types.split(" ").includes(t) ? "" : "none";
     });
     const titre = document.getElementById("titre-options");
-    if(titre) titre.textContent = (t === "matrice") ? "Catégories (colonnes)" : "Options";
+    if(titre) titre.textContent =
+      (t === "matrice") ? "Catégories (colonnes)" :
+      (t === "dragdrop") ? "Éléments à classer" : "Options";
     // La colonne « Description » ne concerne que les cartes (CSS ci-dessous).
     document.documentElement.setAttribute("data-qtype", t);
   }
