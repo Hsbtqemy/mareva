@@ -27,6 +27,7 @@ import secrets
 
 from django.core.files.storage import FileSystemStorage
 from django.db import models
+from django.utils.text import slugify
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 
@@ -218,12 +219,23 @@ class SousQuestion(models.Model):
     Son `code` sert d'en-tête de colonne à l'export (équivalent du varName).
     """
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="sous_questions")
-    code = models.SlugField(max_length=60, unique=True, help_text="Identifiant export (ex. BLUE_SQ001).")
+    code = models.SlugField(max_length=60, unique=True, blank=True, help_text="Identifiant export (ex. BLUE_SQ001). Laissé vide : généré automatiquement depuis le libellé.")
     libelle = models.CharField(max_length=300, help_text="Intitulé de la ligne (ex. Primary Role).")
     ordre = models.IntegerField(default=0)
 
     class Meta:
         ordering = ["ordre", "id"]
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            base = (slugify(self.libelle) or "sq")[:55]
+            code, i = base, 2
+            while SousQuestion.objects.filter(code=code).exclude(pk=self.pk).exists():
+                suffixe = f"-{i}"
+                code = base[:60 - len(suffixe)] + suffixe
+                i += 1
+            self.code = code
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.question.code} / {self.code}"
