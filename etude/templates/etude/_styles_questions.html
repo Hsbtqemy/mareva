@@ -74,7 +74,16 @@
     border: 1px solid var(--bord); border-radius: var(--rayon); background: var(--surface); cursor: grab; }
   .dd-item::before { content: counter(rang); font-size: 12px; color: var(--texte-doux); min-width: 16px; }
   .dd-item .poignee { color: var(--texte-doux); }
+  .dd-item .dd-lib { flex: 1; }
   .dd-item.dragging { opacity: .4; }
+  .dd-actions { display: inline-flex; gap: 4px; }
+  .dd-actions button {
+    width: 32px; height: 32px; border: 1px solid var(--bord); background: transparent;
+    color: var(--texte); border-radius: 6px; cursor: pointer; font-size: 15px; line-height: 1;
+  }
+  .dd-actions button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .dd-actions button:disabled { opacity: .3; cursor: default; }
+  .dd-actions button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   textarea { width: 100%; background: var(--surface); color: var(--texte); border: 1px solid var(--bord);
     border-radius: var(--rayon); padding: 12px 14px; font: inherit; resize: vertical; }

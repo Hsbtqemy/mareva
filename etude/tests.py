@@ -291,6 +291,15 @@ class TypesDiversTest(TestCase):
         self.assertEqual(reps["cartes"], "a|c")
         self.assertEqual(reps["rang"], "y|x")
 
+    def test_dragdrop_boutons_clavier_rendus(self):
+        self.client.post(reverse("acces"), {"code": "e"})
+        self.client.post(reverse("index"))
+        h = self.client.get(reverse("tache")).content.decode()
+        self.assertIn("dd-monter", h)
+        self.assertIn("dd-descendre", h)
+        self.assertIn('aria-label="Monter', h)
+        self.assertIn('aria-label="Descendre', h)
+
 
 class ProfilTest(TestCase):
     def setUp(self):

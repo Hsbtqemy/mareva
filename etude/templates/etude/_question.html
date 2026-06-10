@@ -85,11 +85,16 @@
 
   {% elif q.type == "dragdrop" %}
     <div class="dragdrop" data-qid="{{ q.id }}">
-      <p class="aide">Glissez pour classer (du plus important en haut).</p>
+      <p class="aide">Classez du plus important (en haut) au moins important : glissez, ou utilisez les flèches ↑ ↓.</p>
       <ol class="dd-liste">
         {% for c in q.choix_affiches %}
           <li class="dd-item" draggable="true" data-val="{{ c.valeur }}">
-            <span class="poignee">⠿</span> {{ c.libelle }}
+            <span class="poignee" aria-hidden="true">⠿</span>
+            <span class="dd-lib">{{ c.libelle }}</span>
+            <span class="dd-actions">
+              <button type="button" class="dd-monter" aria-label="Monter : {{ c.libelle }}">↑</button>
+              <button type="button" class="dd-descendre" aria-label="Descendre : {{ c.libelle }}">↓</button>
+            </span>
           </li>
         {% endfor %}
       </ol>

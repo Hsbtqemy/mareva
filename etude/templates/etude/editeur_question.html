@@ -196,7 +196,11 @@
       if(!cats.length || !lignes.length) h += '<span class="aide">Renseignez catégories (colonnes) et sous-questions (lignes).</span>';
     } else if(t === "dragdrop"){
       h += '<ol class="dd-liste">';
-      lignesA("choix").forEach(function(r){ h += '<li class="dd-item"><span class="poignee">⠿</span> ' + escA(champA(r,"libelle")||champA(r,"valeur")) + '</li>'; });
+      lignesA("choix").forEach(function(r){
+        var l = escA(champA(r,"libelle")||champA(r,"valeur"));
+        h += '<li class="dd-item"><span class="poignee" aria-hidden="true">⠿</span><span class="dd-lib">' + l +
+             '</span><span class="dd-actions"><button type="button" tabindex="-1">↑</button><button type="button" tabindex="-1">↓</button></span></li>';
+      });
       h += '</ol>';
     } else if(t === "longtext"){
       h += '<textarea rows="6" placeholder="Votre réponse…"></textarea>';

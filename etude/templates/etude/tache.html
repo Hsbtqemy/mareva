@@ -93,12 +93,33 @@
       suiv.style.display = "none"; valider.style.display = "";
     }
 
-    // Classement par glisser-déposer : maintient l'ordre dans le champ caché.
+    // Classement : glisser-déposer OU flèches ↑/↓ (accessible clavier).
     document.querySelectorAll(".dragdrop").forEach(dd => {
       const liste = dd.querySelector(".dd-liste");
       const champ = dd.querySelector("input[type=hidden]");
-      const maj = () => champ.value = [...liste.querySelectorAll(".dd-item")].map(li => li.dataset.val).join("|");
+      const maj = () => {
+        const items = [...liste.querySelectorAll(".dd-item")];
+        champ.value = items.map(li => li.dataset.val).join("|");
+        items.forEach((li, i) => {
+          const up = li.querySelector(".dd-monter"), dn = li.querySelector(".dd-descendre");
+          if(up) up.disabled = (i === 0);
+          if(dn) dn.disabled = (i === items.length - 1);
+        });
+      };
       maj();
+      // Flèches ↑/↓
+      liste.addEventListener("click", e => {
+        const btn = e.target.closest(".dd-monter, .dd-descendre");
+        if(!btn) return;
+        const li = btn.closest(".dd-item"), monter = btn.classList.contains("dd-monter");
+        if(monter && li.previousElementSibling) liste.insertBefore(li, li.previousElementSibling);
+        else if(!monter && li.nextElementSibling) liste.insertBefore(li.nextElementSibling, li);
+        maj();
+        // Garder le focus clavier : même bouton s'il reste actif, sinon l'autre.
+        const cible = btn.disabled ? li.querySelector(monter ? ".dd-descendre" : ".dd-monter") : btn;
+        if(cible) cible.focus();
+      });
+      // Glisser-déposer souris
       let drag = null;
       liste.querySelectorAll(".dd-item").forEach(li => {
         li.addEventListener("dragstart", () => { drag = li; li.classList.add("dragging"); });
