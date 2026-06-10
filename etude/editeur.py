@@ -342,15 +342,15 @@ def resultats(request):
         Groupe.objects.order_by("ordre", "id")
         .annotate(nb_termines=Count("passages", filter=Q(passages__fin__isnull=False)))
     )
-    participants = (
+    participants = list(
         Participant.objects.order_by("-cree_le")
         .annotate(nb_passages_termines=Count("passages", filter=Q(passages__fin__isnull=False)))
         .select_related("code_acces")
     )
     return render(request, "etude/editeur_resultats.html", {
-        "nb_participants": Participant.objects.count(),
-        "nb_consentements": Participant.objects.filter(consentement=True).count(),
-        "nb_passages": Passage.objects.filter(fin__isnull=False).count(),
+        "nb_participants": len(participants),
+        "nb_consentements": sum(1 for p in participants if p.consentement),
+        "nb_passages": sum(p.nb_passages_termines for p in participants),
         "groupes": groupes,
         "participants": participants,
     })
@@ -381,8 +381,10 @@ def participants_vider(request):
 
 def _recalculer_nb_evaluations():
     from django.db.models import Count, Q
-    for g in Groupe.objects.annotate(n=Count("passages", filter=Q(passages__fin__isnull=False))):
-        Groupe.objects.filter(pk=g.pk).update(nb_evaluations=g.n)
+    groupes = list(Groupe.objects.annotate(n=Count("passages", filter=Q(passages__fin__isnull=False))))
+    for g in groupes:
+        g.nb_evaluations = g.n
+    Groupe.objects.bulk_update(groupes, ["nb_evaluations"])
 
 
 @staff_member_required
