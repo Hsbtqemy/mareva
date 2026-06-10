@@ -71,9 +71,7 @@ def _demarrer_session(request, code):
     return participant
 
 
-# --- Limitation des tentatives d'accès (anti brute-force des codes) ---
-MAX_TENTATIVES_ACCES = 10
-FENETRE_ACCES = 600  # secondes (10 min) ; le blocage expire après ce délai
+# --- Limitation des tentatives d'accès (anti-flood, deux niveaux) ---
 MSG_TROP_TENTATIVES = "Trop de tentatives. Veuillez réessayer dans quelques minutes."
 
 
@@ -82,21 +80,39 @@ def _ip_client(request):
     return xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR", "?")
 
 
-def _cle_acces(request):
-    return f"acces_tentatives:{_ip_client(request)}"
+def _assurer_session(request):
+    if request.session.session_key is None:
+        request.session.create()
+
+
+def _cle_ip(request):
+    return f"acces_ip:{_ip_client(request)}"
+
+
+def _cle_session(request):
+    return f"acces_sess:{request.session.session_key}"
 
 
 def _trop_de_tentatives(request):
-    return cache.get(_cle_acces(request), 0) >= MAX_TENTATIVES_ACCES
+    # Niveau session (principal) : n'affecte pas les autres participants d'une même IP.
+    if request.session.session_key and \
+            cache.get(_cle_session(request), 0) >= settings.ACCES_MAX_SESSION:
+        return True
+    # Niveau IP (garde-fou anti-flood, seuil élevé) ; 0 = désactivé.
+    if settings.ACCES_MAX_IP and cache.get(_cle_ip(request), 0) >= settings.ACCES_MAX_IP:
+        return True
+    return False
 
 
 def _echec_acces(request):
-    cle = _cle_acces(request)
-    cache.set(cle, cache.get(cle, 0) + 1, FENETRE_ACCES)
+    for cle in (_cle_session(request), _cle_ip(request)):
+        cache.set(cle, cache.get(cle, 0) + 1, settings.ACCES_FENETRE)
 
 
 def _reset_acces(request):
-    cache.delete(_cle_acces(request))
+    # Un accès réussi efface les compteurs (les succès dominent en usage normal).
+    for cle in (_cle_session(request), _cle_ip(request)):
+        cache.delete(cle)
 
 
 def acces(request):
@@ -104,6 +120,7 @@ def acces(request):
     if request.session.get("acces_ok") and _participant_courant(request):
         return redirect("index")
     if request.method == "POST":
+        _assurer_session(request)
         if _trop_de_tentatives(request):
             return render(request, "etude/acces.html", {"erreur": MSG_TROP_TENTATIVES})
         saisi = request.POST.get("code", "").strip()
@@ -122,6 +139,7 @@ def acces_lien(request, code):
     """Lien d'accès cliquable /acces/<code>/ : collectif ou personnel, sans saisie."""
     if request.session.get("acces_ok") and _participant_courant(request):
         return redirect("index")
+    _assurer_session(request)
     if _trop_de_tentatives(request):
         return render(request, "etude/acces.html", {"erreur": MSG_TROP_TENTATIVES})
     code_obj = CodeAcces.objects.filter(code=code, actif=True).first()

@@ -19,6 +19,16 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
+# Limitation des tentatives de code d'accès (anti-flood). Deux niveaux :
+#   - par navigateur (session) : seuil principal, n'affecte pas les autres
+#     participants partageant la même IP ;
+#   - par IP : garde-fou anti-flood, seuil élevé, remis à zéro à chaque succès.
+# Les codes étant des jetons à haute entropie, le brute-force est de toute façon
+# irréaliste. Mettre un seuil à 0 désactive ce niveau.
+ACCES_MAX_SESSION = int(os.environ.get("ACCES_MAX_SESSION", "8"))
+ACCES_MAX_IP = int(os.environ.get("ACCES_MAX_IP", "100"))
+ACCES_FENETRE = int(os.environ.get("ACCES_FENETRE", "600"))  # secondes
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

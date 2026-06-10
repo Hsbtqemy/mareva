@@ -76,30 +76,40 @@ class AccesTest(TestCase):
 
 
 class ThrottleAccesTest(TestCase):
-    """Limitation des tentatives de code (anti brute-force)."""
+    """Limitation des tentatives de code : par session (principal) + IP (garde-fou)."""
 
     def setUp(self):
         cache.clear()
         CodeAcces.objects.create(code="bon")
 
     def tearDown(self):
-        cache.clear()  # ne pas polluer les autres tests (cache partagé par process)
+        cache.clear()  # cache partagé par process : ne pas polluer les autres tests
 
-    def test_blocage_apres_seuil(self):
-        for _ in range(10):
-            r = self.client.post(reverse("acces"), {"code": "mauvais"})
+    @override_settings(ACCES_MAX_SESSION=3, ACCES_MAX_IP=10000)
+    def test_blocage_par_session(self):
+        for _ in range(3):
+            self.client.post(reverse("acces"), {"code": "mauvais"})  # seuil atteint
+        r = self.client.post(reverse("acces"), {"code": "mauvais"})
         self.assertContains(r, "Trop de tentatives")
-        # Même un bon code est refusé tant que le blocage est actif.
-        r = self.client.post(reverse("acces"), {"code": "bon"})
+        r = self.client.post(reverse("acces"), {"code": "bon"})  # bon code refusé aussi
         self.assertContains(r, "Trop de tentatives")
         self.assertEqual(Participant.objects.count(), 0)
 
-    def test_succes_reinitialise_le_compteur(self):
-        for _ in range(5):
+    @override_settings(ACCES_MAX_SESSION=10000, ACCES_MAX_IP=3)
+    def test_garde_fou_ip_n_affecte_pas_un_seul_participant(self):
+        # 3 navigateurs distincts (même IP) échouent → l'IP atteint le garde-fou.
+        for _ in range(3):
+            self.client_class().post(reverse("acces"), {"code": "mauvais"})
+        # Un 4e navigateur, même avec un bon code, est arrêté par le garde-fou IP.
+        r = self.client_class().post(reverse("acces"), {"code": "bon"})
+        self.assertContains(r, "Trop de tentatives")
+
+    @override_settings(ACCES_MAX_SESSION=3, ACCES_MAX_IP=10000)
+    def test_succes_reinitialise(self):
+        for _ in range(2):
             self.client.post(reverse("acces"), {"code": "mauvais"})
         r = self.client.post(reverse("acces"), {"code": "bon"})  # succès → reset
         self.assertRedirects(r, reverse("index"))
-        self.assertEqual(cache.get("acces_tentatives:127.0.0.1", 0), 0)
 
 
 class ParcoursTest(TestCase):

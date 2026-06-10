@@ -132,12 +132,16 @@ colonne — le schéma clé-valeur s'en charge.
 
 4. **Sauvegardes** : `db.sqlite3` contient toutes les données — sauvegarder
    régulièrement. Migrer vers PostgreSQL si forte charge simultanée.
-5. **Anti brute-force des codes** : la saisie d'un code d'accès est limitée
-   (10 tentatives / 10 min par IP) via le cache Django. Le cache par défaut est
-   par-process : avec plusieurs workers gunicorn, configurer un cache **partagé**
-   (Redis/Memcached, ou `python manage.py createcachetable` + cache base de
-   données) pour que la limite soit globale. Derrière un proxy, transmettre la
-   vraie IP (`X-Forwarded-For`).
+5. **Anti-flood des codes** : la tentative de code est limitée sur deux niveaux
+   (cache Django) — **par navigateur** (`ACCES_MAX_SESSION`, défaut 8) et un
+   garde-fou **par IP** (`ACCES_MAX_IP`, défaut 100, `0` pour désactiver), sur
+   une fenêtre `ACCES_FENETRE` (défaut 600 s). Le niveau session évite de bloquer
+   des participants **partageant une même IP** (réseau d'établissement, NAT) ;
+   un accès réussi remet les compteurs à zéro. Codes = jetons à haute entropie →
+   le brute-force est de toute façon irréaliste. Réglable par variables d'env.
+   En multi-workers, utiliser un cache **partagé** (Redis/Memcached, ou
+   `createcachetable` + cache base de données). Derrière un proxy, transmettre
+   `X-Forwarded-For`.
 
 ## Pistes d'extension
 
