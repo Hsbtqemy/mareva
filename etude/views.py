@@ -153,12 +153,50 @@ def _collecter(request, q):
     return {"simple": request.POST.get(f"q_{q.id}", "").strip()}
 
 
-def _manque(q, data):
-    if not q.obligatoire:
-        return False
+OBLIGATOIRE_MSG = "Merci de répondre à toutes les questions obligatoires."
+
+
+def _valider(q, data):
+    """
+    Retourne un message d'erreur si la réponse est manquante (obligatoire) OU
+    invalide pour le type de question, sinon None. Garantit l'intégrité des
+    données : on n'enregistre pas une valeur hors bornes / hors liste.
+    """
     if "matrice" in data:
-        return any(not v for v in data["matrice"].values())
-    return not data["simple"]
+        valeurs_ok = {c.valeur for c in q.choix.all()}
+        for v in data["matrice"].values():
+            if not v:
+                if q.obligatoire:
+                    return OBLIGATOIRE_MSG
+            elif v not in valeurs_ok:
+                return "Réponse invalide dans la matrice."
+        return None
+
+    v = data["simple"]
+    if not v:
+        return OBLIGATOIRE_MSG if q.obligatoire else None
+
+    if q.type == Question.ECHELLE:
+        try:
+            iv = int(v)
+        except (TypeError, ValueError):
+            return "Valeur d'échelle invalide."
+        if q.min_val is None or q.max_val is None or not (q.min_val <= iv <= q.max_val):
+            return "Valeur d'échelle hors bornes."
+    elif q.type in (Question.CHOIX, Question.CARTES):
+        valeurs_ok = {c.valeur for c in q.choix.all()}
+        soumis = v.split("|") if q.choix_multiple else [v]
+        if any(s not in valeurs_ok for s in soumis):
+            return "Option de réponse invalide."
+    elif q.type == Question.DRAGDROP:
+        valeurs_ok = {c.valeur for c in q.choix.all()}
+        soumis = [s for s in v.split("|") if s]
+        if set(soumis) != valeurs_ok:
+            return "Classement invalide."
+    elif q.type in (Question.TEXTE, Question.LONGTEXT):
+        if q.longueur and len(v) > q.longueur:
+            return "Réponse trop longue."
+    return None
 
 
 def profil(request):
@@ -189,10 +227,11 @@ def soumettre_profil(request):
     valeurs = {}
     for q in questions:
         data = _collecter(request, q)
-        if _manque(q, data):
+        erreur = _valider(q, data)
+        if erreur:
             return render(request, "etude/profil.html", {
                 "questions": _preparer(questions, participant.id),
-                "erreur": "Merci de répondre à toutes les questions obligatoires.",
+                "erreur": erreur,
             })
         # Profil : types simples ; une éventuelle matrice est stockée jointe.
         valeurs[q] = data["simple"] if "simple" in data else "|".join(data["matrice"].values())
@@ -257,11 +296,12 @@ def soumettre(request):
     collecte = {}
     for q in questions:
         data = _collecter(request, q)
-        if _manque(q, data):
+        erreur = _valider(q, data)
+        if erreur:
             return render(request, "etude/tache.html", {
                 "groupe": passage.groupe,
                 "questions": _preparer(questions, passage.id),
-                "erreur": "Merci de répondre à toutes les questions obligatoires.",
+                "erreur": erreur,
             })
         collecte[q] = data
 

@@ -177,6 +177,53 @@ class ChoixValeurTest(TestCase):
         self.assertEqual(c2.valeur, "AO01")  # valeur explicite conservée
 
 
+class ValidationTest(TestCase):
+    """Intégrité des données : valeurs hors bornes / hors liste refusées."""
+
+    def setUp(self):
+        CodeAcces.objects.create(code="e")
+        self.g = _groupe("G", ordre=0)
+        self.ech = _question(self.g, "ech", type=Question.ECHELLE, obligatoire=True, ordre=0,
+                             min_val=1, max_val=5)
+        self.ch = _question(self.g, "ch", type=Question.CHOIX, obligatoire=True, ordre=1)
+        for v in ("a", "b"):
+            Choix.objects.create(question=self.ch, valeur=v, libelle=v.upper())
+
+    def _entrer_tache(self):
+        self.client.post(reverse("acces"), {"code": "e"})
+        self.client.post(reverse("index"))
+        self.client.get(reverse("tache"))
+
+    def _poste(self, **extra):
+        data = {f"q_{self.ech.id}": "3", f"q_{self.ch.id}": "a"}
+        data.update(extra)
+        return self.client.post(reverse("soumettre"), data)
+
+    def test_echelle_hors_bornes_refusee(self):
+        self._entrer_tache()
+        r = self._poste(**{f"q_{self.ech.id}": "9"})  # max 5
+        self.assertContains(r, "hors bornes")
+        self.assertEqual(Reponse.objects.count(), 0)
+
+    def test_echelle_non_numerique_refusee(self):
+        self._entrer_tache()
+        r = self._poste(**{f"q_{self.ech.id}": "abc"})
+        self.assertContains(r, "invalide")
+        self.assertEqual(Reponse.objects.count(), 0)
+
+    def test_choix_hors_liste_refuse(self):
+        self._entrer_tache()
+        r = self._poste(**{f"q_{self.ch.id}": "zzz"})
+        self.assertContains(r, "invalide")
+        self.assertEqual(Reponse.objects.count(), 0)
+
+    def test_valeurs_valides_acceptees(self):
+        self._entrer_tache()
+        r = self._poste()
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Reponse.objects.filter(question=self.ech).first().valeur, "3")
+
+
 class MatriceTest(TestCase):
     def setUp(self):
         CodeAcces.objects.create(code="e")
