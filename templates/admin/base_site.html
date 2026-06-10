@@ -1,8 +1,7 @@
 {% extends "admin/base.html" %}
-{# Surcharge de l'admin : marque l'étude et applique la palette froide/sombre
-   à toutes les pages d'admin, y compris la page de connexion chercheur
-   (/admin/login/). On retint les variables CSS natives de l'admin Django :
-   pas de mise en page réécrite, donc robuste aux mises à jour de Django. #}
+{# Surcharge de l'admin : marque l'étude (en-tête sombre + accent), tout en
+   laissant le corps et la page de connexion suivre le thème natif de l'admin
+   (clair/sombre selon l'appareil) → lisible dans les deux modes. #}
 
 {% block title %}{{ subtitle }}{% if subtitle %} | {% endif %}{{ config.nom_etude }} — administration{% endblock %}
 
@@ -18,25 +17,20 @@
 
 {% block extrastyle %}{{ block.super }}
 <style>
+  /* En-tête sombre + boutons à l'accent de l'étude, dans tous les thèmes.
+     On ne touche PAS aux couleurs de corps/texte/liens : l'admin gère lui-même
+     le clair/sombre selon l'appareil (sinon texte foncé sur fond foncé). */
   :root, html[data-theme="light"], html[data-theme="dark"] {
     --primary: #4f8aa6;
-    --secondary: #1d2127;
-    --accent: #6ea8c4;
     --header-bg: #1d2127;
     --header-color: #e6e8ec;
     --header-branding-color: #e6e8ec;
     --header-link-color: #e6e8ec;
-    --link-fg: #6ea8c4;
-    --link-hover-color: #8fc0d6;
     --button-bg: #4f8aa6;
     --button-fg: #ffffff;
     --button-hover-bg: #6ea8c4;
     --default-button-bg: #4f8aa6;
     --default-button-hover-bg: #6ea8c4;
   }
-  /* Page de connexion : carte sobre, cohérente avec le front participant. */
-  body.login { background: #14171c; }
-  body.login #container { box-shadow: none; }
-  body.login #content { background: #1d2127; border: 1px solid #2c323b; border-radius: 10px; }
 </style>
 {% endblock %}

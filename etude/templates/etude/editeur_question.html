@@ -5,6 +5,11 @@
 {% block contenu %}
   <h1>{% if question %}Modifier une question{% else %}Nouvelle question{% endif %}</h1>
 
+  <div class="section" id="apercu">
+    <h2>Aperçu (tel que le verra le participant)</h2>
+    <div class="formulaire" id="apercu-contenu"></div>
+  </div>
+
   <form method="post">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="msg error">{{ form.non_field_errors }}</div>{% endif %}
@@ -91,6 +96,13 @@
       <a class="lien" href="{% url 'editeur' %}">Annuler</a>
     </div>
   </form>
+  {% include "etude/_styles_questions.html" %}
+  <style>
+    #apercu { position: sticky; top: 64px; z-index: 1; }
+    #apercu .formulaire { margin-top: 4px; }
+    #apercu fieldset.question { border-top: 0; padding-top: 0; }
+    #apercu legend { margin-bottom: 10px; }
+  </style>
 {% endblock %}
 
 {% block script %}
@@ -128,5 +140,75 @@
     });
   }
   initFormset("choix"); initFormset("sousq");
+
+  /* ---- Aperçu en direct ---- */
+  function selA(id){ return document.getElementById(id); }
+  function valA(id){ var e = selA(id); return e ? e.value : ""; }
+  function chkA(id){ var e = selA(id); return e ? e.checked : false; }
+  function escA(s){ return (s==null?"":String(s)).replace(/[&<>"']/g, function(c){
+    return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]; }); }
+  function lignesA(prefix){
+    return Array.prototype.slice.call(document.querySelectorAll("#"+prefix+"-rows .frow"))
+      .filter(function(r){ return r.style.display !== "none"; });
+  }
+  function champA(row, suff){ var el = row.querySelector('[name$="-'+suff+'"]'); return el ? el.value : ""; }
+
+  function renderApercu(){
+    var t = valA("id_type");
+    var lib = valA("id_libelle") || "(libellé de la question)";
+    var h = '<fieldset class="question"><legend>' + escA(lib) +
+            (chkA("id_obligatoire") ? ' <span class="requis">*</span>' : '') + '</legend>';
+    if(t === "echelle"){
+      var mn = parseInt(valA("id_min_val")), mx = parseInt(valA("id_max_val"));
+      h += '<div class="echelle"><span class="borne">' + escA(valA("id_label_min")) + '</span><div class="graduations">';
+      if(!isNaN(mn) && !isNaN(mx) && mx >= mn && (mx - mn) <= 50){
+        for(var v = mn; v <= mx; v++) h += '<label class="grad"><input type="radio" name="ap"><span>' + v + '</span></label>';
+      } else { h += '<span class="aide">Renseignez min et max.</span>'; }
+      h += '</div><span class="borne">' + escA(valA("id_label_max")) + '</span></div>';
+    } else if(t === "choix" || t === "cartes"){
+      var multi = chkA("id_choix_multiple"), type = multi ? "checkbox" : "radio";
+      var rows = lignesA("choix");
+      if(t === "cartes"){
+        h += '<div class="cartes">';
+        rows.forEach(function(r){ var l = champA(r,"libelle")||champA(r,"valeur"), d = champA(r,"description");
+          h += '<label class="carte"><input type="'+type+'" name="ap"><span class="carte-corps"><span class="carte-titre">'+escA(l)+'</span>'+(d?'<span class="carte-desc">'+escA(d)+'</span>':'')+'</span></label>'; });
+      } else {
+        h += '<div class="choix">';
+        rows.forEach(function(r){ var l = champA(r,"libelle")||champA(r,"valeur");
+          h += '<label class="option"><input type="'+type+'" name="ap"><span>'+escA(l)+'</span></label>'; });
+      }
+      if(!rows.length) h += '<span class="aide">Ajoutez des options ci-dessous.</span>';
+      h += '</div>';
+    } else if(t === "matrice"){
+      var cats = lignesA("choix"), lignes = lignesA("sousq");
+      h += '<div class="matrice-wrap"><table class="matrice"><thead><tr><th></th>';
+      cats.forEach(function(c){ h += '<th>' + escA(champA(c,"libelle")||champA(c,"valeur")) + '</th>'; });
+      h += '</tr></thead><tbody>';
+      lignes.forEach(function(r, i){ h += '<tr><th class="ligne">' + escA(champA(r,"libelle")||champA(r,"code")) + '</th>';
+        cats.forEach(function(){ h += '<td><label class="radio-cell"><input type="radio" name="ap-r'+i+'"></label></td>'; });
+        h += '</tr>'; });
+      h += '</tbody></table></div>';
+      if(!cats.length || !lignes.length) h += '<span class="aide">Renseignez catégories (colonnes) et sous-questions (lignes).</span>';
+    } else if(t === "dragdrop"){
+      h += '<ol class="dd-liste">';
+      lignesA("choix").forEach(function(r){ h += '<li class="dd-item"><span class="poignee">⠿</span> ' + escA(champA(r,"libelle")||champA(r,"valeur")) + '</li>'; });
+      h += '</ol>';
+    } else if(t === "longtext"){
+      h += '<textarea rows="6" placeholder="Votre réponse…"></textarea>';
+    } else {
+      h += '<textarea rows="2" placeholder="Votre réponse…"></textarea>';
+    }
+    h += '</fieldset>';
+    selA("apercu-contenu").innerHTML = h;
+  }
+  // Ne pas re-rendre quand on interagit DANS l'aperçu (sinon la sélection saute).
+  function onEdit(e){ if(e && e.target && e.target.closest && e.target.closest("#apercu")) return; renderApercu(); }
+  document.addEventListener("input", onEdit);
+  document.addEventListener("change", onEdit);
+  // Ajout/suppression de ligne : recalcul après l'action.
+  document.addEventListener("click", function(e){
+    if(e.target.closest("#choix-add, #sousq-add, [data-suppr]")) setTimeout(renderApercu, 0);
+  });
+  renderApercu();
 </script>
 {% endblock %}
