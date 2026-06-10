@@ -568,6 +568,12 @@ class EditeurSitePagesTest(TestCase):
                 # Un autre Média l'utilise encore → fichier conservé.
                 self.assertTrue(os.path.exists(os.path.join(tmp, "videos", "partage.mp4")))
 
+    def test_section_options_visible_pour_classement(self):
+        # Régression : la section Options doit être autorisée pour dragdrop
+        # (sinon impossible d'ajouter les éléments à classer).
+        h = self.client.get(reverse("editeur_question_nouveau")).content.decode()
+        self.assertIn('data-types="choix cartes matrice dragdrop"', h)
+
     def test_creer_media_et_parametres(self):
         self.client.post(reverse("editeur_medias"), {
             "code": "v1", "type_media": "video", "fichier": "videos/x.mp4", "titre": "", "vtt": "",
