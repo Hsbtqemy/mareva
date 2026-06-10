@@ -1,5 +1,3 @@
-{# Rendu d'une question selon son type. Variable : q (préparée : choix_affiches,
-   sous_questions_affichees). #}
 <fieldset class="question">
   <legend>{{ q.libelle }}{% if q.obligatoire %} <span class="requis">*</span>{% endif %}</legend>
   {% if q.aide %}<p class="aide">{{ q.aide }}</p>{% endif %}
