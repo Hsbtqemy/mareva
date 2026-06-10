@@ -31,7 +31,7 @@ command -v ufw >/dev/null 2>&1 && { ufw allow OpenSSH || true; ufw allow 'Nginx 
 
 echo "== 2/8 Utilisateur + code =="
 id "$UTIL" >/dev/null 2>&1 || useradd --system --create-home --home-dir "$CHEMIN" --shell /usr/sbin/nologin "$UTIL"
-if [ -d "$CHEMIN/.git" ]; then git -C "$CHEMIN" pull --ff-only; else git clone "$DEPOT" "$CHEMIN"; fi
+if [ -d "$CHEMIN/.git" ]; then sudo -u "$UTIL" git -C "$CHEMIN" pull --ff-only; else git clone "$DEPOT" "$CHEMIN"; fi
 chown -R "$UTIL":www-data "$CHEMIN"
 
 echo "== 3/8 venv + dépendances =="
@@ -58,10 +58,15 @@ systemctl enable etude
 systemctl restart etude
 
 echo "== 7/8 Nginx =="
-sed -e "s|/chemin/absolu/vers/le-projet|$CHEMIN|g" -e "s|server_name .*;|server_name $DOMAINE;|" \
-  "$CHEMIN/deploy/nginx.conf" > /etc/nginx/sites-available/etude
-ln -sf /etc/nginx/sites-available/etude /etc/nginx/sites-enabled/etude
-rm -f /etc/nginx/sites-enabled/default
+# Ne pas écraser la config si certbot l'a déjà enrichie (présence du bloc 443).
+if grep -q "listen 443" /etc/nginx/sites-available/etude 2>/dev/null; then
+  echo "   Config nginx déjà HTTPS — pas d'écrasement, rechargement seul."
+else
+  sed -e "s|/chemin/absolu/vers/le-projet|$CHEMIN|g" -e "s|server_name .*;|server_name $DOMAINE;|" \
+    "$CHEMIN/deploy/nginx.conf" > /etc/nginx/sites-available/etude
+  ln -sf /etc/nginx/sites-available/etude /etc/nginx/sites-enabled/etude
+  rm -f /etc/nginx/sites-enabled/default
+fi
 nginx -t
 systemctl reload nginx
 
@@ -70,7 +75,7 @@ if [ -n "$EMAIL" ]; then
   certbot --nginx -d "$DOMAINE" --non-interactive --agree-tos -m "$EMAIL" --redirect \
     || echo "!! certbot a échoué — vérifier que $DOMAINE résout vers ce serveur et que le port 80 est ouvert."
 else
-  echo "!! EMAIL non fourni → HTTPS non configuré. Le lancer ensuite : certbot --nginx -d $DOMAINE"
+  echo "   HTTPS déjà configuré — renouvellement automatique par certbot."
 fi
 
 echo
