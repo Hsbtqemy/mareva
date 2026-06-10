@@ -4,6 +4,40 @@ Pile : **Nginx** (HTTPS, fichiers, médias protégés) → **Gunicorn** (lance D
 géré par **systemd**. Fichiers d'exemple dans ce dossier — à adapter (domaine,
 chemins absolus, utilisateur).
 
+## Déploiement express (ce serveur — VPS Ubuntu Infomaniak)
+
+Contexte : VPS Ubuntu, IPv4 `83.228.221.204`, IPv6 `2001:1600:18:203::242`,
+dépôt **public**. Pas de nom de domaine → on utilise **sslip.io**
+(`83.228.221.204.sslip.io` résout vers l'IP) pour obtenir un **certificat HTTPS**
+Let's Encrypt sans acheter de domaine. (Un vrai domaine reste préférable à terme :
+il suffira de relancer certbot avec `-d ton-domaine`.)
+
+**Depuis ton Mac**, connecte-toi en SSH au serveur, puis (en root) :
+
+```bash
+sudo git clone https://github.com/Hsbtqemy/mareva.git /opt/etude
+sudo EMAIL=ton@mail.fr bash /opt/etude/deploy/deployer.sh
+```
+
+Le script `deployer.sh` fait tout : paquets, utilisateur `etude`, venv +
+dépendances, `.env` (clé secrète générée, `ALLOWED_HOSTS` = sslip.io + IPs),
+`migrate`, `collectstatic`, service systemd, Nginx, et HTTPS via certbot.
+
+Ensuite, **créer le compte admin** :
+
+```bash
+sudo -u etude /opt/etude/.venv/bin/python /opt/etude/manage.py createsuperuser
+```
+
+Puis ouvrir `https://83.228.221.204.sslip.io/` (admin : `/admin/`, éditeur : `/editeur/`).
+
+**Pré-requis** : ports **80 et 443 ouverts** (sécurité Infomaniak + éventuel `ufw`),
+dépôt rendu **public** sur GitHub avant le clone. **Mises à jour** : relancer le
+même script (il fait `git pull` + redémarrage). En cas d'erreur, copier la sortie
+de l'étape en échec.
+
+---
+
 ## Prérequis
 - Serveur Linux, **Python 3.11+**, **Nginx**.
 - Un nom de domaine pointant vers le serveur (pour HTTPS).
