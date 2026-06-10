@@ -45,7 +45,6 @@
     .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     /* Lien éditeur, visible uniquement pour le staff connecté. */
     .lien-editeur {
-      position: fixed; bottom: 14px; left: 14px; z-index: 50;
       font-size: 13px; text-decoration: none;
       color: var(--texte-doux); background: var(--surface);
       border: 1px solid var(--bord); border-radius: 20px; padding: 6px 14px;
@@ -103,7 +102,10 @@
 </head>
 <body>
   <button type="button" class="theme-toggle" id="theme-toggle" title="Thème clair / sombre" aria-label="Basculer le thème clair ou sombre"><span class="t-icon">🌙</span></button>
-  {% if user.is_staff %}<a class="lien-editeur" href="{% url 'editeur' %}" title="Éditeur du questionnaire">⚙ Éditeur</a>{% endif %}
+  <div style="position:fixed;bottom:14px;left:14px;z-index:50;display:flex;gap:8px;">
+    {% if user.is_staff %}<a class="lien-editeur" href="{% url 'editeur' %}" title="Éditeur du questionnaire">⚙ Éditeur</a>{% endif %}
+    <a class="lien-editeur" href="{% url 'admin:index' %}" title="Administration">⚑ Admin</a>
+  </div>
   <main class="cadre">
     {% block contenu %}{% endblock %}
   </main>
