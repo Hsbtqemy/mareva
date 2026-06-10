@@ -20,6 +20,7 @@ import os
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.files.storage import FileSystemStorage
+from django.db import transaction
 from django.db.models import ProtectedError
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
@@ -149,11 +150,14 @@ def api_question_supprimer(request, qid):
 
 
 def _code_libre(model, base):
-    """Code de slug unique pour `model` (Question / SousQuestion), dérivé de `base`."""
-    base = (slugify(base) or "x")[:50]
+    """Code de slug unique pour `model`, dérivé de `base`, respectant max_length."""
+    maxlen = model._meta.get_field("code").max_length
+    base = (slugify(base) or "x")[:maxlen]
     code, i = base, 2
     while model.objects.filter(code=code).exists():
-        code, i = f"{base}-{i}", i + 1
+        suffixe = f"-{i}"
+        code = base[:maxlen - len(suffixe)] + suffixe
+        i += 1
     return code
 
 
@@ -181,7 +185,9 @@ def _dupliquer_question(q, groupe=None):
 @staff_member_required
 @require_POST
 def api_question_dupliquer(request, qid):
-    _dupliquer_question(get_object_or_404(Question, pk=qid))
+    q = get_object_or_404(Question, pk=qid)
+    with transaction.atomic():
+        _dupliquer_question(q)
     return JsonResponse({"ok": True})
 
 
@@ -189,15 +195,16 @@ def api_question_dupliquer(request, qid):
 @require_POST
 def api_groupe_dupliquer(request, gid):
     g = get_object_or_404(Groupe, pk=gid)
-    dernier = Groupe.objects.order_by("-ordre").first()
-    copie = Groupe.objects.create(
-        titre=(g.titre + " (copie)") if g.titre else "",
-        consigne=g.consigne, media=g.media, portee=g.portee,
-        inclure_tirage=g.inclure_tirage, active=g.active,
-        ordre=(dernier.ordre + 1) if dernier else 0,
-    )
-    for q in g.questions.order_by("ordre", "id"):
-        _dupliquer_question(q, groupe=copie)
+    with transaction.atomic():
+        dernier = Groupe.objects.order_by("-ordre").first()
+        copie = Groupe.objects.create(
+            titre=(g.titre + " (copie)") if g.titre else "",
+            consigne=g.consigne, media=g.media, portee=g.portee,
+            inclure_tirage=g.inclure_tirage, active=g.active,
+            ordre=(dernier.ordre + 1) if dernier else 0,
+        )
+        for q in g.questions.order_by("ordre", "id"):
+            _dupliquer_question(q, groupe=copie)
     return JsonResponse({"id": copie.id})
 
 

@@ -542,6 +542,16 @@ class EditeurTest(TestCase):
         self.assertEqual(copie.sous_questions.count(), 1)
         self.assertTrue(copie.sous_questions.first().code.startswith("sq1-copie"))
 
+    def test_dupliquer_deux_fois_codes_uniques_et_bornes(self):
+        g = _groupe("G")
+        q = _question(g, "x" * 38, type=Question.TEXTE)  # proche du max (40)
+        for _ in range(2):
+            self.client.post(reverse("editeur_question_dupliquer", args=[q.id]),
+                             data="{}", content_type="application/json")
+        codes = list(Question.objects.filter(groupe=g).values_list("code", flat=True))
+        self.assertEqual(len(codes), len(set(codes)))           # tous distincts
+        self.assertTrue(all(len(c) <= 40 for c in codes))       # max_length respecté
+
     def test_dupliquer_groupe(self):
         g = _groupe("Groupe A", portee=Groupe.STANDARD)
         _question(g, "a", type=Question.TEXTE)
