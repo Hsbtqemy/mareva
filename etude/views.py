@@ -22,6 +22,7 @@ import random
 import secrets
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import F
 from django.http import FileResponse, HttpResponse, Http404, HttpResponseForbidden
@@ -70,15 +71,48 @@ def _demarrer_session(request, code):
     return participant
 
 
+# --- Limitation des tentatives d'accès (anti brute-force des codes) ---
+MAX_TENTATIVES_ACCES = 10
+FENETRE_ACCES = 600  # secondes (10 min) ; le blocage expire après ce délai
+MSG_TROP_TENTATIVES = "Trop de tentatives. Veuillez réessayer dans quelques minutes."
+
+
+def _ip_client(request):
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    return xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR", "?")
+
+
+def _cle_acces(request):
+    return f"acces_tentatives:{_ip_client(request)}"
+
+
+def _trop_de_tentatives(request):
+    return cache.get(_cle_acces(request), 0) >= MAX_TENTATIVES_ACCES
+
+
+def _echec_acces(request):
+    cle = _cle_acces(request)
+    cache.set(cle, cache.get(cle, 0) + 1, FENETRE_ACCES)
+
+
+def _reset_acces(request):
+    cache.delete(_cle_acces(request))
+
+
 def acces(request):
     """Barrière d'entrée : saisie d'un code d'accès (individuel ou collectif)."""
     if request.session.get("acces_ok") and _participant_courant(request):
         return redirect("index")
     if request.method == "POST":
+        if _trop_de_tentatives(request):
+            return render(request, "etude/acces.html", {"erreur": MSG_TROP_TENTATIVES})
         saisi = request.POST.get("code", "").strip()
         code = CodeAcces.objects.filter(code=saisi, actif=True).first() if saisi else None
         if code is None:
-            return render(request, "etude/acces.html", {"erreur": "Code d'accès incorrect."})
+            _echec_acces(request)
+            msg = MSG_TROP_TENTATIVES if _trop_de_tentatives(request) else "Code d'accès incorrect."
+            return render(request, "etude/acces.html", {"erreur": msg})
+        _reset_acces(request)
         _demarrer_session(request, code)
         return redirect("index")
     return render(request, "etude/acces.html")
@@ -88,9 +122,14 @@ def acces_lien(request, code):
     """Lien d'accès cliquable /acces/<code>/ : collectif ou personnel, sans saisie."""
     if request.session.get("acces_ok") and _participant_courant(request):
         return redirect("index")
+    if _trop_de_tentatives(request):
+        return render(request, "etude/acces.html", {"erreur": MSG_TROP_TENTATIVES})
     code_obj = CodeAcces.objects.filter(code=code, actif=True).first()
     if code_obj is None:
-        return render(request, "etude/acces.html", {"erreur": "Lien d'accès invalide ou expiré."})
+        _echec_acces(request)
+        msg = MSG_TROP_TENTATIVES if _trop_de_tentatives(request) else "Lien d'accès invalide ou expiré."
+        return render(request, "etude/acces.html", {"erreur": msg})
+    _reset_acces(request)
     _demarrer_session(request, code_obj)
     return redirect("index")
 

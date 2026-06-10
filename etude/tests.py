@@ -17,6 +17,7 @@ import json
 import tempfile
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -72,6 +73,33 @@ class AccesTest(TestCase):
     def test_lien_invalide(self):
         r = self.client.get(reverse("acces_lien", args=["inconnu"]))
         self.assertContains(r, "invalide")
+
+
+class ThrottleAccesTest(TestCase):
+    """Limitation des tentatives de code (anti brute-force)."""
+
+    def setUp(self):
+        cache.clear()
+        CodeAcces.objects.create(code="bon")
+
+    def tearDown(self):
+        cache.clear()  # ne pas polluer les autres tests (cache partagé par process)
+
+    def test_blocage_apres_seuil(self):
+        for _ in range(10):
+            r = self.client.post(reverse("acces"), {"code": "mauvais"})
+        self.assertContains(r, "Trop de tentatives")
+        # Même un bon code est refusé tant que le blocage est actif.
+        r = self.client.post(reverse("acces"), {"code": "bon"})
+        self.assertContains(r, "Trop de tentatives")
+        self.assertEqual(Participant.objects.count(), 0)
+
+    def test_succes_reinitialise_le_compteur(self):
+        for _ in range(5):
+            self.client.post(reverse("acces"), {"code": "mauvais"})
+        r = self.client.post(reverse("acces"), {"code": "bon"})  # succès → reset
+        self.assertRedirects(r, reverse("index"))
+        self.assertEqual(cache.get("acces_tentatives:127.0.0.1", 0), 0)
 
 
 class ParcoursTest(TestCase):

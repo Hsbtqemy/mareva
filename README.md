@@ -132,6 +132,12 @@ colonne — le schéma clé-valeur s'en charge.
 
 4. **Sauvegardes** : `db.sqlite3` contient toutes les données — sauvegarder
    régulièrement. Migrer vers PostgreSQL si forte charge simultanée.
+5. **Anti brute-force des codes** : la saisie d'un code d'accès est limitée
+   (10 tentatives / 10 min par IP) via le cache Django. Le cache par défaut est
+   par-process : avec plusieurs workers gunicorn, configurer un cache **partagé**
+   (Redis/Memcached, ou `python manage.py createcachetable` + cache base de
+   données) pour que la limite soit globale. Derrière un proxy, transmettre la
+   vraie IP (`X-Forwarded-For`).
 
 ## Pistes d'extension
 
