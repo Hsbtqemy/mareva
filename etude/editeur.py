@@ -31,7 +31,11 @@ from .forms import (
     QuestionForm, MediaForm, MediaUploadForm, ConfigurationForm,
     ChoixFormSet, SousQuestionFormSet,
 )
-from .models import Groupe, Question, Choix, SousQuestion, Media, Reponse, ReponseProfil, Configuration
+from . import exports
+from .models import (
+    Groupe, Question, Choix, SousQuestion, Media, Participant, Passage,
+    Reponse, ReponseProfil, Configuration,
+)
 
 
 def _serialiser_question(q):
@@ -327,6 +331,32 @@ def media_supprimer(request, mid):
     get_object_or_404(Media, pk=mid).delete()  # SET_NULL sur les références
     messages.success(request, "Média supprimé.")
     return redirect("editeur_medias")
+
+
+@staff_member_required
+def resultats(request):
+    """Tableau de bord : compteurs + accès aux exports (réservé au staff)."""
+    from django.db.models import Count, Q
+    groupes = (
+        Groupe.objects.order_by("ordre", "id")
+        .annotate(nb_termines=Count("passages", filter=Q(passages__fin__isnull=False)))
+    )
+    return render(request, "etude/editeur_resultats.html", {
+        "nb_participants": Participant.objects.count(),
+        "nb_consentements": Participant.objects.filter(consentement=True).count(),
+        "nb_passages": Passage.objects.filter(fin__isnull=False).count(),
+        "groupes": groupes,
+    })
+
+
+@staff_member_required
+def export_passages(request):
+    return exports.csv_passages(Passage.objects.all())
+
+
+@staff_member_required
+def export_participants(request):
+    return exports.csv_participants(Participant.objects.all())
 
 
 @staff_member_required

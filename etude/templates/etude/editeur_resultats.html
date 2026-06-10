@@ -1,0 +1,53 @@
+{% extends "etude/editeur_base.html" %}
+{% block titre %}Résultats{% endblock %}
+{% block nav_resultats %}actif{% endblock %}
+
+{% block contenu %}
+  <h1>Résultats</h1>
+
+  <div class="stats">
+    <div class="stat"><span class="n">{{ nb_participants }}</span><span class="l">participants</span></div>
+    <div class="stat"><span class="n">{{ nb_consentements }}</span><span class="l">consentements</span></div>
+    <div class="stat"><span class="n">{{ nb_passages }}</span><span class="l">passages terminés</span></div>
+  </div>
+
+  <div class="actions">
+    <a class="btn primaire" href="{% url 'editeur_export_passages' %}">⬇ Exporter les passages (CSV)</a>
+    <a class="btn" href="{% url 'editeur_export_participants' %}">⬇ Exporter les participants (CSV)</a>
+  </div>
+  <p class="aide-champ">
+    « Passages » : une ligne par (participant × groupe), réponses dépliées en colonnes
+    (matrice = une colonne par sous-question). « Participants » : une ligne par personne
+    (profil + nombre de groupes répondus). Format large, exploitable en R / pandas.
+  </p>
+
+  <div class="section">
+    <h2>Par groupe</h2>
+    <table class="grille-res">
+      <thead><tr><th>Groupe</th><th>Portée</th><th>Tirage</th><th>Passages terminés</th></tr></thead>
+      <tbody>
+        {% for g in groupes %}
+          <tr>
+            <td>{{ g.titre|default:"(sans titre)" }}</td>
+            <td>{{ g.get_portee_display }}</td>
+            <td>{% if g.portee == "profil" %}—{% elif g.inclure_tirage %}oui{% else %}exclu{% endif %}</td>
+            <td>{{ g.nb_termines }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="aide-champ">Aucun groupe.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+
+{% block style %}
+  .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat { flex: 1; min-width: 140px; background: var(--surface); border: 1px solid var(--bord);
+    border-radius: var(--rayon); padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+  .stat .n { font-size: 28px; font-weight: 700; }
+  .stat .l { font-size: 13px; color: var(--doux); }
+  table.grille-res { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.grille-res th { text-align: left; font-size: 12px; color: var(--doux); font-weight: 500; padding: 6px 8px; }
+  table.grille-res td { padding: 6px 8px; border-top: 1px solid var(--bord); }
+{% endblock %}

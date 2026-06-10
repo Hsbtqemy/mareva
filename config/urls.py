@@ -31,4 +31,7 @@ urlpatterns = [
     path("editeur/medias/", editeur.medias, name="editeur_medias"),
     path("editeur/medias/<int:mid>/supprimer/", editeur.media_supprimer, name="editeur_media_supprimer"),
     path("editeur/parametres/", editeur.parametres, name="editeur_parametres"),
+    path("editeur/resultats/", editeur.resultats, name="editeur_resultats"),
+    path("editeur/export/passages/", editeur.export_passages, name="editeur_export_passages"),
+    path("editeur/export/participants/", editeur.export_participants, name="editeur_export_participants"),
 ]

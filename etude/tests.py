@@ -671,6 +671,44 @@ class EditeurSitePagesTest(TestCase):
         h = self.client.get(reverse("editeur_question_nouveau")).content.decode()
         self.assertIn('data-types="choix cartes matrice dragdrop"', h)
 
+    def test_resultats_et_exports(self):
+        from django.utils import timezone
+        # Données : un participant avec profil + un passage terminé.
+        gp = _groupe("Profil", portee=Groupe.PROFIL, ordre=0)
+        age = _question(gp, "age", type=Question.TEXTE)
+        gs = _groupe("Standard", ordre=1)
+        s1 = _question(gs, "s1", type=Question.TEXTE)
+        p = Participant.objects.create(jeton="jeton-r", consentement=True)
+        ReponseProfil.objects.create(participant=p, question=age, valeur="40")
+        passage = Passage.objects.create(participant=p, groupe=gs, fin=timezone.now())
+        Reponse.objects.create(passage=passage, question=s1, valeur="oui")
+
+        # Page de résultats (staff).
+        r = self.client.get(reverse("editeur_resultats"))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Résultats")
+
+        # Export passages : une ligne de données.
+        rp = self.client.get(reverse("editeur_export_passages"))
+        self.assertEqual(rp["Content-Type"], "text/csv")
+        lignes = rp.content.decode("utf-8").splitlines()
+        self.assertIn("age", lignes[0]); self.assertIn("s1", lignes[0])
+        self.assertEqual(len(lignes), 2)
+
+        # Export participants : une ligne par participant.
+        rpa = self.client.get(reverse("editeur_export_participants"))
+        rows = list(csv.reader(io.StringIO(rpa.content.decode("utf-8"))))
+        self.assertEqual(rows[0], ["jeton_participant", "consentement", "cree_le", "nb_groupes_repondus", "age"])
+        d = dict(zip(rows[0], rows[1]))
+        self.assertEqual(d["jeton_participant"], "jeton-r")
+        self.assertEqual(d["age"], "40")
+        self.assertEqual(d["nb_groupes_repondus"], "1")
+
+    def test_resultats_reserve_au_staff(self):
+        anon = self.client.__class__()
+        for nom in ("editeur_resultats", "editeur_export_passages", "editeur_export_participants"):
+            self.assertIn("/admin/login", anon.get(reverse(nom))["Location"])
+
     def test_creer_media_et_parametres(self):
         self.client.post(reverse("editeur_medias"), {
             "code": "v1", "type_media": "video", "fichier": "videos/x.mp4", "titre": "", "vtt": "",

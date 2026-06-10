@@ -9,13 +9,13 @@ L'action « Exporter en CSV » sur les Passages repivote le stockage clé-valeur
 en format large : une ligne par passage (participant × groupe), colonnes profil
 (recopiées) puis colonnes des questions standard.
 """
-import csv
 import secrets
 
 from django.contrib import admin, messages
-from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import path, reverse
+
+from . import exports
 
 from .models import (
     Question, Choix, SousQuestion, Groupe, Media,
@@ -85,60 +85,9 @@ class PassageAdmin(admin.ModelAdmin):
     inlines = [ReponseInline]
     actions = ["exporter_csv"]
 
-    @staticmethod
-    def _colonnes(questions):
-        """Une colonne par question, sauf matrice → une colonne par sous-question (code)."""
-        cols = []
-        for q in questions:
-            if q.type == Question.MATRICE:
-                cols.extend(sq.code for sq in q.sous_questions.all())
-            else:
-                cols.append(q.code)
-        return cols
-
-    @staticmethod
-    def _par_code(reponses):
-        """Réponses indexées par code de colonne (sous-question si matrice, sinon question)."""
-        d = {}
-        for r in reponses:
-            sq = getattr(r, "sous_question", None)
-            d[sq.code if sq else r.question.code] = r.valeur
-        return d
-
     @admin.action(description="Exporter en CSV (format large, repivoté)")
     def exporter_csv(self, request, queryset):
-        toutes = list(
-            Question.objects.select_related("groupe").prefetch_related("sous_questions")
-            .order_by("groupe__ordre", "ordre", "id")
-        )
-        q_profil = [q for q in toutes if q.groupe and q.groupe.portee == Groupe.PROFIL]
-        q_standard = [q for q in toutes if not (q.groupe and q.groupe.portee == Groupe.PROFIL)]
-        cols_profil = self._colonnes(q_profil)
-        cols_standard = self._colonnes(q_standard)
-
-        reponse = HttpResponse(content_type="text/csv")
-        reponse["Content-Disposition"] = 'attachment; filename="passages.csv"'
-        writer = csv.writer(reponse)
-        writer.writerow([
-            "id_passage", "jeton_participant", "consentement",
-            "code_groupe", "debut", "fin",
-        ] + cols_profil + cols_standard)
-
-        queryset = queryset.select_related("participant", "groupe").prefetch_related(
-            "reponses__question", "reponses__sous_question",
-            "participant__reponses_profil__question",
-        )
-        for p in queryset:
-            par_reponse = self._par_code(p.reponses.all())
-            par_profil = self._par_code(p.participant.reponses_profil.all())
-            ligne = [
-                p.id, p.participant.jeton, p.participant.consentement,
-                p.groupe.titre or p.groupe_id,
-                p.debut.isoformat(), p.fin.isoformat() if p.fin else "",
-            ] + [par_profil.get(c, "") for c in cols_profil] \
-              + [par_reponse.get(c, "") for c in cols_standard]
-            writer.writerow(ligne)
-        return reponse
+        return exports.csv_passages(queryset)
 
 
 @admin.register(CodeAcces)
