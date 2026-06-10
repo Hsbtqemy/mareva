@@ -75,6 +75,26 @@ class AccesTest(TestCase):
         self.assertContains(r, "invalide")
 
 
+class SauvegardeTest(TestCase):
+    def test_archive_contient_base_et_medias(self):
+        import os, zipfile
+        from io import StringIO
+        from django.core.management import call_command
+        with tempfile.TemporaryDirectory() as tmp:
+            media = os.path.join(tmp, "media", "videos")
+            os.makedirs(media)
+            with open(os.path.join(media, "x.mp4"), "wb") as f:
+                f.write(b"x")
+            with override_settings(MEDIA_ROOT=os.path.join(tmp, "media")):
+                call_command("sauvegarde", sortie=os.path.join(tmp, "out"), stdout=StringIO())
+            zips = [f for f in os.listdir(os.path.join(tmp, "out")) if f.endswith(".zip")]
+            self.assertEqual(len(zips), 1)
+            with zipfile.ZipFile(os.path.join(tmp, "out", zips[0])) as z:
+                noms = z.namelist()
+                self.assertIn("base/db.sqlite3", noms)
+                self.assertTrue(any(n.endswith("videos/x.mp4") for n in noms))
+
+
 class ThrottleAccesTest(TestCase):
     """Limitation des tentatives de code : par session (principal) + IP (garde-fou)."""
 

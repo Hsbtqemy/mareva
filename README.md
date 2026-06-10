@@ -130,8 +130,20 @@ colonne — le schéma clé-valeur s'en charge.
    En développement (`DEBUG=True`) il n'y a pas de Nginx : Django sert le
    fichier directement. Le basculement est automatique (voir `views.media_question`).
 
-4. **Sauvegardes** : `db.sqlite3` contient toutes les données — sauvegarder
-   régulièrement. Migrer vers PostgreSQL si forte charge simultanée.
+4. **Sauvegardes** : commande dédiée qui archive **base + médias** dans un
+   `.zip` horodaté :
+
+   ```bash
+   python manage.py sauvegarde                 # → sauvegardes/sauvegarde_AAAAMMJJ_HHMMSS.zip
+   python manage.py sauvegarde --sortie /backups
+   ```
+
+   À planifier régulièrement (cron / tâche planifiée). **Restauration** : arrêter
+   le serveur, dézipper l'archive, puis remplacer `db.sqlite3` par
+   `base/db.sqlite3` et le dossier `media/` par le `media/` de l'archive ;
+   relancer `python manage.py migrate`. (Base non-SQLite : l'archive contient
+   `base/dumpdata.json` → `python manage.py loaddata base/dumpdata.json`.)
+   Migrer vers PostgreSQL si forte charge simultanée.
 5. **Anti-flood des codes** : la tentative de code est limitée sur deux niveaux
    (cache Django) — **par navigateur** (`ACCES_MAX_SESSION`, défaut 8) et un
    garde-fou **par IP** (`ACCES_MAX_IP`, défaut 100, `0` pour désactiver), sur
