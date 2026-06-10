@@ -137,9 +137,13 @@
         ${q.active ? "" : '<span class="badge">inactive</span>'}
         <label class="opt"><input type="checkbox" data-k="saut" ${q.saut_de_page?"checked":""}> saut de page</label>
         <a class="lien" href="/editeur/q/${q.id}/">Modifier</a>
+        <button class="btn" data-act="dup">Dupliquer</button>
         <button class="btn danger" data-act="suppr">Suppr</button>`;
       row.querySelector('[data-k=saut]').addEventListener("change", e =>
         api("/editeur/question/", {id:q.id, saut_de_page:e.target.checked}));
+      row.querySelector('[data-act=dup]').onclick = async () => {
+        await api(`/editeur/question/${q.id}/dupliquer/`, {}); location.reload();
+      };
       row.querySelector('[data-act=suppr]').onclick = async () => {
         if(!confirm("Supprimer cette question ?")) return;
         await api(`/editeur/question/${q.id}/supprimer/`, {}); location.reload();
@@ -160,6 +164,7 @@
             <option value="standard" ${g.portee!=="profil"?"selected":""}>Standard (tiré)</option>
             <option value="profil" ${g.portee==="profil"?"selected":""}>Profil (une fois)</option>
           </select>
+          <button class="btn" data-act="dup-g">Dupliquer</button>
           <button class="btn danger" data-act="suppr-g">Supprimer</button>
         </div>
         <div class="gcorps">
@@ -190,6 +195,9 @@
       div.querySelector('[data-g=media]').addEventListener("change", ()=>sauverG());
       div.querySelector('[data-g=inclure_tirage]').addEventListener("change", ()=>sauverG());
       div.querySelector('[data-g=active]').addEventListener("change", ()=>sauverG());
+      div.querySelector('[data-act=dup-g]').onclick = async () => {
+        await api(`/editeur/groupe/${g.id}/dupliquer/`, {}); location.reload();
+      };
       div.querySelector('[data-act=suppr-g]').onclick = async () => {
         if(!confirm("Supprimer ce groupe ? Ses questions repasseront « sans groupe ».")) return;
         await api(`/editeur/groupe/${g.id}/supprimer/`, {}); location.reload();

@@ -30,7 +30,7 @@ from .forms import (
     QuestionForm, MediaForm, MediaUploadForm, ConfigurationForm,
     ChoixFormSet, SousQuestionFormSet,
 )
-from .models import Groupe, Question, Media, Reponse, ReponseProfil, Configuration
+from .models import Groupe, Question, Choix, SousQuestion, Media, Reponse, ReponseProfil, Configuration
 
 
 def _serialiser_question(q):
@@ -146,6 +146,59 @@ def api_question_supprimer(request, qid):
     except ProtectedError:
         return JsonResponse({"erreur": "Suppression impossible (réponses liées)."}, status=400)
     return JsonResponse({"ok": True})
+
+
+def _code_libre(model, base):
+    """Code de slug unique pour `model` (Question / SousQuestion), dérivé de `base`."""
+    base = (slugify(base) or "x")[:50]
+    code, i = base, 2
+    while model.objects.filter(code=code).exists():
+        code, i = f"{base}-{i}", i + 1
+    return code
+
+
+def _dupliquer_question(q, groupe=None):
+    """Copie une question (champs + choix + sous-questions) en fin du groupe cible."""
+    groupe = groupe if groupe is not None else q.groupe
+    dernier = Question.objects.filter(groupe=groupe).order_by("-ordre").first()
+    copie = Question.objects.create(
+        groupe=groupe, code=_code_libre(Question, f"{q.code}-copie"),
+        libelle=q.libelle, type=q.type, aide=q.aide, media=q.media,
+        min_val=q.min_val, max_val=q.max_val, label_min=q.label_min, label_max=q.label_max,
+        choix_multiple=q.choix_multiple, melanger=q.melanger, longueur=q.longueur,
+        obligatoire=q.obligatoire, saut_de_page=q.saut_de_page, active=q.active,
+        ordre=(dernier.ordre + 1) if dernier else 0,
+    )
+    for c in q.choix.all():
+        Choix.objects.create(question=copie, valeur=c.valeur, libelle=c.libelle,
+                             description=c.description, ordre=c.ordre)
+    for sq in q.sous_questions.all():
+        SousQuestion.objects.create(question=copie, code=_code_libre(SousQuestion, f"{sq.code}-copie"),
+                                    libelle=sq.libelle, ordre=sq.ordre)
+    return copie
+
+
+@staff_member_required
+@require_POST
+def api_question_dupliquer(request, qid):
+    _dupliquer_question(get_object_or_404(Question, pk=qid))
+    return JsonResponse({"ok": True})
+
+
+@staff_member_required
+@require_POST
+def api_groupe_dupliquer(request, gid):
+    g = get_object_or_404(Groupe, pk=gid)
+    dernier = Groupe.objects.order_by("-ordre").first()
+    copie = Groupe.objects.create(
+        titre=(g.titre + " (copie)") if g.titre else "",
+        consigne=g.consigne, media=g.media, portee=g.portee,
+        inclure_tirage=g.inclure_tirage, active=g.active,
+        ordre=(dernier.ordre + 1) if dernier else 0,
+    )
+    for q in g.questions.order_by("ordre", "id"):
+        _dupliquer_question(q, groupe=copie)
+    return JsonResponse({"id": copie.id})
 
 
 @staff_member_required

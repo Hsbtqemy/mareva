@@ -526,6 +526,35 @@ class EditeurTest(TestCase):
         qa.refresh_from_db(); qb.refresh_from_db()
         self.assertEqual((qb.ordre, qa.ordre), (0, 1))
 
+    def test_dupliquer_question(self):
+        g = _groupe("G")
+        q = _question(g, "orig", type=Question.CHOIX)
+        Choix.objects.create(question=q, valeur="a", libelle="A")
+        Choix.objects.create(question=q, valeur="b", libelle="B")
+        SousQuestion.objects.create(question=q, code="sq1", libelle="L1")
+        r = self.client.post(reverse("editeur_question_dupliquer", args=[q.id]),
+                             data="{}", content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Question.objects.filter(groupe=g).count(), 2)
+        copie = Question.objects.exclude(pk=q.id).get(groupe=g)
+        self.assertEqual(copie.code, "orig-copie")
+        self.assertEqual(copie.choix.count(), 2)
+        self.assertEqual(copie.sous_questions.count(), 1)
+        self.assertTrue(copie.sous_questions.first().code.startswith("sq1-copie"))
+
+    def test_dupliquer_groupe(self):
+        g = _groupe("Groupe A", portee=Groupe.STANDARD)
+        _question(g, "a", type=Question.TEXTE)
+        _question(g, "b", type=Question.TEXTE)
+        r = self.client.post(reverse("editeur_groupe_dupliquer", args=[g.id]),
+                             data="{}", content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        copie = Groupe.objects.get(pk=r.json()["id"])
+        self.assertEqual(copie.titre, "Groupe A (copie)")
+        self.assertEqual(copie.questions.count(), 2)
+        # Codes des questions copiées uniques.
+        self.assertEqual(Question.objects.filter(code__startswith="a-copie").count(), 1)
+
     def test_toggle_saut_de_page(self):
         g = _groupe("G"); q = _question(g, "a")
         self.client.post(reverse("editeur_question"),

@@ -22,6 +22,8 @@ urlpatterns = [
     path("editeur/groupe/<int:gid>/supprimer/", editeur.api_groupe_supprimer, name="editeur_groupe_supprimer"),
     path("editeur/question/", editeur.api_question, name="editeur_question"),
     path("editeur/question/<int:qid>/supprimer/", editeur.api_question_supprimer, name="editeur_question_supprimer"),
+    path("editeur/question/<int:qid>/dupliquer/", editeur.api_question_dupliquer, name="editeur_question_dupliquer"),
+    path("editeur/groupe/<int:gid>/dupliquer/", editeur.api_groupe_dupliquer, name="editeur_groupe_dupliquer"),
     path("editeur/ordre/", editeur.api_reordonner, name="editeur_ordre"),
     # Construction dans l'interface du site.
     path("editeur/q/nouveau/", editeur.question_form, name="editeur_question_nouveau"),
