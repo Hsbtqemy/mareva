@@ -24,6 +24,7 @@ from django.db import transaction
 from django.db.models import ProtectedError
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.utils.text import get_valid_filename, slugify
 from django.views.decorators.http import require_POST
 
@@ -34,7 +35,7 @@ from .forms import (
 from . import exports
 from .models import (
     Groupe, Question, Choix, SousQuestion, Media, Participant, Passage,
-    Reponse, ReponseProfil, Configuration,
+    Reponse, ReponseProfil, Configuration, CodeAcces,
 )
 
 
@@ -368,4 +369,14 @@ def parametres(request):
         form.save()
         messages.success(request, "Paramètres enregistrés.")
         return redirect("editeur_parametres")
-    return render(request, "etude/editeur_parametres.html", {"form": form})
+
+    codes = list(CodeAcces.objects.filter(actif=True).order_by("-collectif", "code"))
+    for c in codes:
+        c.url_lien = request.build_absolute_uri(reverse("acces_lien", args=[c.code]))
+    url_acces = request.build_absolute_uri(reverse("acces"))
+
+    return render(request, "etude/editeur_parametres.html", {
+        "form": form,
+        "codes": codes,
+        "url_acces": url_acces,
+    })

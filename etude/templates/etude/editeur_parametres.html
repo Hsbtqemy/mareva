@@ -25,4 +25,66 @@
 
     <div class="actions"><button type="submit" class="btn primaire">Enregistrer</button></div>
   </form>
+
+  <div class="section">
+    <h2>Liens de participation</h2>
+    <div class="champ-bloc">
+      <label>Page de saisie du code</label>
+      <div class="lien-row">
+        <span class="lien-url">{{ url_acces }}</span>
+        <button type="button" class="btn copier" data-val="{{ url_acces }}">Copier</button>
+      </div>
+    </div>
+
+    {% if codes %}
+      <table class="table-codes">
+        <thead>
+          <tr><th>Type</th><th>Code</th><th>Note</th><th>Lien cliquable</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for c in codes %}
+          <tr>
+            <td>{% if c.collectif %}<span class="badge-collectif">Collectif</span>{% else %}<span class="badge-indiv">Individuel</span>{% endif %}</td>
+            <td><code>{{ c.code }}</code></td>
+            <td class="cell-note">{{ c.note }}</td>
+            <td class="cell-url"><a href="{{ c.url_lien }}" target="_blank" rel="noopener">{{ c.url_lien }}</a></td>
+            <td><button type="button" class="btn copier" data-val="{{ c.url_lien }}">Copier</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p style="color:var(--texte-doux);font-size:13px;margin:8px 0 0">
+        Aucun code d'accès actif. <a href="{% url 'admin:etude_codeacces_changelist' %}">Créer un code dans l'administration.</a>
+      </p>
+    {% endif %}
+  </div>
+
+  <style>
+    .lien-row { display:flex; align-items:center; gap:8px; }
+    .lien-url { font-size:13px; color:var(--texte); background:var(--surface2,#1a1d23); border:1px solid var(--bord); border-radius:6px; padding:6px 10px; flex:1; overflow-x:auto; white-space:nowrap; }
+    .table-codes { width:100%; border-collapse:collapse; font-size:13px; margin-top:12px; }
+    .table-codes th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--texte-doux); padding:4px 8px 8px; border-bottom:1px solid var(--bord); }
+    .table-codes td { padding:8px; border-bottom:1px solid var(--bord); vertical-align:middle; }
+    .table-codes tr:last-child td { border-bottom:0; }
+    .cell-note { color:var(--texte-doux); max-width:160px; }
+    .cell-url { max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .cell-url a { color:var(--accent); text-decoration:none; }
+    .cell-url a:hover { text-decoration:underline; }
+    .badge-collectif,.badge-indiv { display:inline-block; font-size:11px; font-weight:600; border-radius:4px; padding:2px 6px; }
+    .badge-collectif { background:rgba(110,168,196,.15); color:var(--accent); }
+    .badge-indiv { background:rgba(160,160,160,.12); color:var(--texte-doux); }
+    .copier.ok { color:#6abf69; }
+  </style>
+  <script>
+    document.querySelectorAll('.copier').forEach(btn => {
+      btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(btn.dataset.val).then(() => {
+          const orig = btn.textContent;
+          btn.textContent = 'Copié !'; btn.classList.add('ok');
+          setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 2000);
+        });
+      });
+    });
+  </script>
 {% endblock %}
