@@ -7,6 +7,10 @@
   /* Deux volets : vidéo collée à gauche, questions à droite. */
   .tache.deux-volets { display: grid; grid-template-columns: minmax(280px, 40%) 1fr; gap: 40px; align-items: start; }
   .volet-video { position: sticky; top: 16px; }
+  /* En paysage : volet droit défile seul, lecteur toujours visible. */
+  @media (min-width: 801px) {
+    .volet-questions { max-height: calc(100vh - 48px); overflow-y: auto; padding-right: 8px; scroll-behavior: smooth; }
+  }
   @media (max-width: 800px) {
     .tache.deux-volets { grid-template-columns: 1fr; gap: 24px; }
     .volet-video { position: static; }
