@@ -1,9 +1,10 @@
 {% extends "etude/base.html" %}
+{% load md_extras %}
 {% block titre %}{{ config.titre_accueil }}{% endblock %}
 {% block contenu %}
   <p class="eyebrow">{{ config.nom_etude }}</p>
   <h1>{{ config.titre_accueil }}</h1>
-  <div class="intro">{{ config.description|linebreaksbr }}</div>
+  <div class="intro consigne">{{ config.description|markdown }}</div>
   <form method="post" class="actions">
     {% csrf_token %}
     <button type="submit" class="bouton">{{ config.bouton_consentement }}</button>

@@ -14,7 +14,7 @@
     {% for q in questions %}
       {% ifchanged q.groupe_id %}
         {% if q.groupe.titre %}<h2 class="section-titre">{{ q.groupe.titre }}</h2>{% endif %}
-        {% if q.groupe.consigne %}<p class="section-consigne">{{ q.groupe.consigne|linebreaksbr }}</p>{% endif %}
+        {% if q.groupe.consigne %}<div class="section-consigne consigne">{{ q.groupe.consigne|markdown }}</div>{% endif %}
       {% endifchanged %}
       {% include "etude/_question.html" with q=q %}
     {% endfor %}
