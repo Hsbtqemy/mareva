@@ -4,6 +4,7 @@
 {% block cadre_extra %}{% if groupe.media %} cadre-plein{% endif %}{% endblock %}
 
 {% block contenu %}
+  {% if apercu %}<div class="bandeau-apercu">Aperçu — les réponses ne sont pas enregistrées &nbsp;·&nbsp; <a href="{% url 'editeur' %}">← Retour à l'éditeur</a></div><div style="height:36px"></div>{% endif %}
   {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
 
   <div class="tache {% if groupe.media %}deux-volets{% endif %}">
@@ -28,7 +29,7 @@
       {% if groupe.titre %}<p class="eyebrow">{{ groupe.titre }}</p>{% endif %}
       {% if groupe.consigne %}<div class="intro consigne">{{ groupe.consigne|markdown }}</div>{% endif %}
 
-      <form method="post" action="{% url 'soumettre' %}" class="formulaire" id="form-groupe">
+      <form method="post" action="{% if apercu %}#{% else %}{% url 'soumettre' %}{% endif %}" {% if apercu %}onsubmit="return false"{% endif %} class="formulaire" id="form-groupe">
         {% csrf_token %}
         <div class="flux">
           {% for q in questions %}
@@ -42,7 +43,7 @@
           <button type="button" class="bouton secondaire" id="prec" style="display:none">← Précédent</button>
           <span class="compteur" id="compteur"></span>
           <button type="button" class="bouton" id="suiv">Suivant →</button>
-          <button type="submit" class="bouton" id="valider" style="display:none">Valider</button>
+          {% if apercu %}<a href="{% url 'editeur' %}" class="bouton" id="valider" style="display:none">← Retour à l'éditeur</a>{% else %}<button type="submit" class="bouton" id="valider" style="display:none">Valider</button>{% endif %}
         </div>
       </form>
     </div>

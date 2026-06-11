@@ -379,6 +379,24 @@ def participants_vider(request):
     return redirect("editeur_resultats")
 
 
+@staff_member_required
+def apercu_groupe(request, gid):
+    """Rendu participant d'un groupe, sans créer de passage (staff uniquement)."""
+    from .views import _preparer
+    groupe = get_object_or_404(Groupe, pk=gid)
+    questions = list(
+        groupe.questions.filter(active=True)
+        .select_related("media").prefetch_related("choix", "sous_questions")
+        .order_by("ordre", "id")
+    )
+    _preparer(questions, 0)
+    return render(request, "etude/tache.html", {
+        "groupe": groupe,
+        "questions": questions,
+        "apercu": True,
+    })
+
+
 def _recalculer_nb_evaluations():
     from django.db.models import Count, Q
     groupes = list(Groupe.objects.annotate(n=Count("passages", filter=Q(passages__fin__isnull=False))))
