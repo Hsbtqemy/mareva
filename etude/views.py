@@ -375,6 +375,10 @@ def soumettre(request):
 
 
 def fin(request):
+    if request.session.get("apercu"):
+        participant = _participant_courant(request)
+        if participant:
+            participant.delete()
     return render(request, "etude/fin.html")
 
 

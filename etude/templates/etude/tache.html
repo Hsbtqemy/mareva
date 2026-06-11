@@ -4,7 +4,6 @@
 {% block cadre_extra %}{% if groupe.media %} cadre-plein{% endif %}{% endblock %}
 
 {% block contenu %}
-  {% if apercu %}<div class="bandeau-apercu">Aperçu — les réponses ne sont pas enregistrées &nbsp;·&nbsp; <a href="{% url 'editeur' %}">← Retour à l'éditeur</a></div><div style="height:36px"></div>{% endif %}
   {% if erreur %}<div class="erreur">{{ erreur }}</div>{% endif %}
 
   <div class="tache {% if groupe.media %}deux-volets{% endif %}">

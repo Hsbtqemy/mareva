@@ -83,7 +83,7 @@
     <a class="lien {% block nav_medias %}{% endblock %}" href="{% url 'editeur_medias' %}">Médias</a>
     <a class="lien {% block nav_parametres %}{% endblock %}" href="{% url 'editeur_parametres' %}">Paramètres</a>
     <a class="lien {% block nav_resultats %}{% endblock %}" href="{% url 'editeur_resultats' %}">Résultats</a>
-    <a class="lien pousse" href="/acces/" target="_blank">Aperçu ↗</a>
+    <a class="lien pousse" href="{% url 'editeur_apercu_questionnaire' %}" target="_blank">Aperçu ↗</a>
     <a class="lien" href="/admin/">Données / admin</a>
     <button type="button" class="btn" id="theme-toggle" title="Thème clair / sombre" aria-label="Basculer le thème"><span class="t-icon">🌙</span></button>
   </div>

@@ -8,4 +8,7 @@ from .models import Configuration
 
 
 def configuration(request):
-    return {"config": Configuration.charger()}
+    return {
+        "config": Configuration.charger(),
+        "apercu_session": request.session.get("apercu", False),
+    }

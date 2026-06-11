@@ -380,6 +380,20 @@ def participants_vider(request):
 
 
 @staff_member_required
+def apercu_questionnaire(request):
+    """Lance un parcours participant complet en mode aperçu (supprimé à la fin)."""
+    import secrets
+    participant = Participant.objects.create(
+        jeton=secrets.token_urlsafe(32),
+        user_agent=request.META.get("HTTP_USER_AGENT", "")[:300],
+    )
+    request.session["jeton"] = participant.jeton
+    request.session["acces_ok"] = True
+    request.session["apercu"] = True
+    return redirect("index")
+
+
+@staff_member_required
 def apercu_groupe(request, gid):
     """Rendu participant d'un groupe, sans créer de passage (staff uniquement)."""
     from .views import _preparer

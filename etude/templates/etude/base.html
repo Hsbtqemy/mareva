@@ -95,6 +95,12 @@
       color: var(--erreur); padding: 12px 16px; border-radius: var(--rayon);
       margin-bottom: 20px; font-size: 14px;
     }
+    .bandeau-apercu {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: var(--accent-fonce); color: #fff;
+      font-size: 13px; text-align: center; padding: 8px 16px;
+    }
+    .bandeau-apercu a { color: #fff; font-weight: 600; }
     .consigne { font-size: 14px; line-height: 1.65; color: var(--texte-doux); }
     .consigne p { margin: 0 0 10px; }
     .consigne p:last-child { margin-bottom: 0; }
@@ -112,6 +118,7 @@
   </style>
 </head>
 <body>
+  {% if apercu or apercu_session %}<div class="bandeau-apercu">Aperçu — les réponses ne sont pas enregistrées &nbsp;·&nbsp; <a href="{% url 'editeur' %}">← Retour à l'éditeur</a></div><div style="height:36px"></div>{% endif %}
   <button type="button" class="theme-toggle" id="theme-toggle" title="Thème clair / sombre" aria-label="Basculer le thème clair ou sombre"><span class="t-icon">🌙</span></button>
   <div style="position:fixed;bottom:14px;left:14px;z-index:50;display:flex;gap:8px;">
     {% if user.is_staff %}<a class="lien-editeur" href="{% url 'editeur' %}" title="Éditeur du questionnaire">⚙ Éditeur</a>{% endif %}
