@@ -52,6 +52,7 @@
   {% include "etude/_styles_questions.html" %}
   <script>
   (function(){
+    const APERCU = {{ apercu|yesno:"true,false" }};
     // Découpe le flux en écrans aux marqueurs data-break ; navigation client.
     const flux = document.querySelector(".flux");
     const items = [...flux.querySelectorAll(".q-item")];
@@ -74,6 +75,7 @@
     const compteur = document.getElementById("compteur");
 
     function valideEcran(){
+      if(APERCU) return true;
       for(const el of wraps[i].querySelectorAll("input,textarea,select")){
         if(!el.checkValidity()){ el.reportValidity(); return false; }
       }
