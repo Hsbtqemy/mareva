@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
@@ -382,7 +383,6 @@ def participants_vider(request):
 @staff_member_required
 def apercu_questionnaire(request):
     """Lance un parcours participant complet en mode aperçu (supprimé à la fin)."""
-    import secrets
     participant = Participant.objects.create(
         jeton=secrets.token_urlsafe(32),
         user_agent=request.META.get("HTTP_USER_AGENT", "")[:300],
