@@ -391,6 +391,33 @@ class Configuration(models.Model):
         help_text="Texte de la page de fin.",
     )
 
+    # --- Page "continuer ou arrêter" ---
+    continuer_titre = models.CharField(
+        max_length=200, default="Merci, c'est noté.",
+        help_text="Titre de la page intermédiaire après chaque groupe.",
+    )
+    continuer_texte_suite = models.CharField(
+        max_length=300, default="Souhaitez-vous continuer ou vous arrêter ici ?",
+        help_text="Texte affiché quand il reste des groupes à faire.",
+    )
+    continuer_bouton_continuer = models.CharField(
+        max_length=80, default="Continuer",
+        help_text="Libellé du bouton « continuer ».",
+    )
+    continuer_bouton_arreter = models.CharField(
+        max_length=80, default="M'arrêter ici",
+        help_text="Libellé du bouton « s'arrêter ».",
+    )
+    continuer_texte_fin = models.CharField(
+        max_length=300,
+        default="Vous avez répondu à toutes les questions disponibles. Merci pour votre participation.",
+        help_text="Texte affiché quand il n'y a plus de groupe disponible.",
+    )
+    continuer_bouton_terminer = models.CharField(
+        max_length=80, default="Terminer",
+        help_text="Libellé du bouton « terminer ».",
+    )
+
     # --- Paramètres de déroulé ---
     ordre_groupes_aleatoire = models.BooleanField(
         default=True,

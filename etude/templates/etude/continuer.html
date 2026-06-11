@@ -2,17 +2,17 @@
 {% block titre %}Réponses enregistrées{% endblock %}
 {% block contenu %}
   <p class="eyebrow">Réponses enregistrées</p>
-  <h1>Merci, c'est noté.</h1>
+  <h1>{{ config.continuer_titre }}</h1>
   {% if reste %}
-    <p class="intro">Souhaitez-vous continuer ou vous arrêter ici ?</p>
+    <p class="intro">{{ config.continuer_texte_suite }}</p>
     <div class="actions">
-      <a href="{% url 'tache' %}" class="bouton">Continuer</a>
-      <a href="{% url 'fin' %}" class="bouton secondaire">M'arrêter ici</a>
+      <a href="{% url 'tache' %}" class="bouton">{{ config.continuer_bouton_continuer }}</a>
+      <a href="{% url 'fin' %}" class="bouton secondaire">{{ config.continuer_bouton_arreter }}</a>
     </div>
   {% else %}
-    <p class="intro">Vous avez répondu à toutes les questions disponibles. Merci pour votre participation.</p>
+    <p class="intro">{{ config.continuer_texte_fin }}</p>
     <div class="actions">
-      <a href="{% url 'fin' %}" class="bouton">Terminer</a>
+      <a href="{% url 'fin' %}" class="bouton">{{ config.continuer_bouton_terminer }}</a>
     </div>
   {% endif %}
 {% endblock %}

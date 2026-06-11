@@ -77,6 +77,9 @@ class ConfigurationForm(StyleMixin, forms.ModelForm):
         fields = [
             "nom_etude", "titre_accueil", "description", "bouton_consentement",
             "intro_profil", "texte_remerciement",
+            "continuer_titre", "continuer_texte_suite",
+            "continuer_bouton_continuer", "continuer_bouton_arreter",
+            "continuer_texte_fin", "continuer_bouton_terminer",
             "ordre_groupes_aleatoire", "max_groupes",
         ]
 

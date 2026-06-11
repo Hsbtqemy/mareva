@@ -23,6 +23,20 @@
       <div class="champ-bloc"><label>Nombre maximal de groupes par participant (0 = illimité)</label>{{ form.max_groupes }}</div>
     </div>
 
+    <div class="section">
+      <h2>Page intermédiaire (continuer / arrêter)</h2>
+      <div class="champ-bloc"><label>Titre</label>{{ form.continuer_titre }}</div>
+      <div class="ligne">
+        <div class="champ-bloc"><label>Texte — quand il reste des groupes</label>{{ form.continuer_texte_suite }}</div>
+        <div class="champ-bloc"><label>Texte — quand tout est fait</label>{{ form.continuer_texte_fin }}</div>
+      </div>
+      <div class="ligne">
+        <div class="champ-bloc"><label>Bouton « continuer »</label>{{ form.continuer_bouton_continuer }}</div>
+        <div class="champ-bloc"><label>Bouton « s'arrêter »</label>{{ form.continuer_bouton_arreter }}</div>
+        <div class="champ-bloc"><label>Bouton « terminer »</label>{{ form.continuer_bouton_terminer }}</div>
+      </div>
+    </div>
+
     <div class="actions"><button type="submit" class="btn primaire">Enregistrer</button></div>
   </form>
 
