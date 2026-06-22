@@ -718,6 +718,11 @@ class EditeurSitePagesTest(TestCase):
             "nom_etude": "Mon étude", "titre_accueil": "Salut",
             "description": "desc", "bouton_consentement": "Go",
             "intro_profil": "", "texte_remerciement": "Merci",
+            # La page « continuer / arrêter » : champs obligatoires, repostés tels
+            # quels par le vrai formulaire (pré-remplis depuis l'instance).
+            "continuer_titre": "Noté", "continuer_texte_suite": "Continuer ?",
+            "continuer_bouton_continuer": "Continuer", "continuer_bouton_arreter": "Arrêter",
+            "continuer_texte_fin": "Fini", "continuer_bouton_terminer": "Terminer",
             "ordre_groupes_aleatoire": "on", "max_groupes": "0",
         })
         Configuration.charger().refresh_from_db()

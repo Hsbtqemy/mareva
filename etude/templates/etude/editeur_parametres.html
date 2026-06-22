@@ -7,9 +7,15 @@
 
   <form method="post">
     {% csrf_token %}
+    {% if form.errors %}
+      <div class="msg error">
+        Certains champs sont invalides — rien n'a été enregistré :
+        {% for f in form %}{% for e in f.errors %}<div>{{ f.label }} : {{ e }}</div>{% endfor %}{% endfor %}
+      </div>
+    {% endif %}
     <div class="section">
       <h2>Identité & textes</h2>
-      <div class="champ-bloc"><label>Nom de l'étude</label>{{ form.nom_etude }}{{ form.nom_etude.errors }}</div>
+      <div class="champ-bloc"><label>Nom de l'étude</label>{{ form.nom_etude }}</div>
       <div class="champ-bloc"><label>Titre d'accueil</label>{{ form.titre_accueil }}</div>
       <div class="champ-bloc"><label>Description / consentement</label>{{ form.description }}</div>
       <div class="champ-bloc"><label>Libellé du bouton de consentement</label>{{ form.bouton_consentement }}</div>
