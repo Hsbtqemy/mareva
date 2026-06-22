@@ -1,5 +1,5 @@
 <fieldset class="question">
-  <legend>{{ q.libelle }}{% if q.obligatoire %} <span class="requis">*</span>{% endif %}</legend>
+  <legend>{{ q.libelle }}{% if q.obligatoire %} <span class="requis" aria-label="obligatoire">*</span>{% endif %}</legend>
   {% if q.aide %}<p class="aide">{{ q.aide }}</p>{% endif %}
 
   {% if q.media %}
@@ -20,16 +20,17 @@
 
   {% if q.type == "echelle" %}
     <div class="echelle">
-      <span class="borne">{{ q.label_min }}</span>
+      <span class="borne" aria-hidden="true">{{ q.label_min }}</span>
       <div class="graduations">
         {% for v in q.plage %}
           <label class="grad">
-            <input type="radio" name="q_{{ q.id }}" value="{{ v }}" {% if q.obligatoire %}required{% endif %}>
+            <input type="radio" name="q_{{ q.id }}" value="{{ v }}" {% if q.obligatoire %}required{% endif %}
+                   {% if forloop.first and q.label_min %}aria-label="{{ v }} — {{ q.label_min }}"{% elif forloop.last and q.label_max %}aria-label="{{ v }} — {{ q.label_max }}"{% endif %}>
             <span>{{ v }}</span>
           </label>
         {% endfor %}
       </div>
-      <span class="borne">{{ q.label_max }}</span>
+      <span class="borne" aria-hidden="true">{{ q.label_max }}</span>
     </div>
 
   {% elif q.type == "choix" %}
@@ -72,6 +73,7 @@
               {% for c in q.choix_affiches %}
                 <td><label class="radio-cell">
                   <input type="radio" name="q_{{ q.id }}_sq_{{ sq.id }}" value="{{ c.valeur }}"
+                         aria-label="{{ sq.libelle }} — {{ c.libelle }}"
                          {% if q.obligatoire %}required{% endif %}>
                 </label></td>
               {% endfor %}
@@ -97,6 +99,7 @@
         {% endfor %}
       </ol>
       <input type="hidden" name="q_{{ q.id }}" value="">
+      <p class="sr-seul" aria-live="polite"></p>
     </div>
 
   {% elif q.type == "longtext" %}

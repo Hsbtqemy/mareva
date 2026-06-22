@@ -102,6 +102,7 @@
     document.querySelectorAll(".dragdrop").forEach(dd => {
       const liste = dd.querySelector(".dd-liste");
       const champ = dd.querySelector("input[type=hidden]");
+      const annonce = dd.querySelector(".sr-seul");
       const maj = () => {
         const items = [...liste.querySelectorAll(".dd-item")];
         champ.value = items.map(li => li.dataset.val).join("|");
@@ -120,6 +121,12 @@
         if(monter && li.previousElementSibling) liste.insertBefore(li, li.previousElementSibling);
         else if(!monter && li.nextElementSibling) liste.insertBefore(li.nextElementSibling, li);
         maj();
+        // Annonce la nouvelle position pour les lecteurs d'écran.
+        if(annonce){
+          const tous = [...liste.querySelectorAll(".dd-item")];
+          const lib = li.querySelector(".dd-lib").textContent.trim();
+          annonce.textContent = `${lib} — position ${tous.indexOf(li)+1} sur ${tous.length}`;
+        }
         // Garder le focus clavier : même bouton s'il reste actif, sinon l'autre.
         const cible = btn.disabled ? li.querySelector(monter ? ".dd-descendre" : ".dd-monter") : btn;
         if(cible) cible.focus();
