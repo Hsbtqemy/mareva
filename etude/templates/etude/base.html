@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titre %}{{ config.nom_etude }}{% endblock %}</title>
-  <script>/* applique un choix explicite avant peinture ; sinon l'appareil décide (CSS) */(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <script>/* applique un choix explicite avant peinture ; sinon l'appareil décide (CSS) */(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'||t==='contraste')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
   <style>
     /* Direction : laboratoire calme. La vidéo est l'unique foyer d'attention ;
        tout le reste est neutre et silencieux pour ne pas biaiser le jugement.
@@ -36,16 +36,28 @@
       --fond: #14171c; --surface: #1d2127; --bord: #2c323b; --texte: #e6e8ec;
       --texte-doux: #9aa3af; --accent: #6ea8c4; --accent-fonce: #4f8aa6; --erreur: #c98b8b;
     }
-    .theme-toggle {
-      position: fixed; top: 14px; right: 14px; z-index: 50;
-      width: 38px; height: 38px; border-radius: 50%;
-      border: 1px solid var(--bord); background: var(--surface); color: var(--texte);
-      cursor: pointer; font-size: 16px; line-height: 1; padding: 0;
+    /* Contraste élevé : noir sur blanc, bordures franches — lisibilité maximale. */
+    :root[data-theme="contraste"] {
+      --fond: #ffffff; --surface: #ffffff; --bord: #000000; --texte: #000000;
+      --texte-doux: #1a1a1a; --accent: #0040b0; --accent-fonce: #003a9e; --erreur: #b00000;
     }
-    .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    /* Auto : si le système demande un contraste renforcé et qu'aucun thème n'est choisi. */
+    @media (prefers-contrast: more) {
+      :root:not([data-theme]) {
+        --fond: #ffffff; --surface: #ffffff; --bord: #000000; --texte: #000000;
+        --texte-doux: #1a1a1a; --accent: #0040b0; --accent-fonce: #003a9e; --erreur: #b00000;
+      }
+    }
+    .theme-select {
+      position: fixed; top: 14px; right: 14px; z-index: 50;
+      border: 1px solid var(--bord); background: var(--surface); color: var(--texte);
+      border-radius: 20px; padding: 7px 12px; font-size: 0.8125rem;
+      line-height: 1; cursor: pointer; font-family: inherit;
+    }
+    .theme-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     /* Lien éditeur, visible uniquement pour le staff connecté. */
     .lien-editeur {
-      font-size: 13px; text-decoration: none;
+      font-size: 0.8125rem; text-decoration: none;
       color: var(--texte-doux); background: var(--surface);
       border: 1px solid var(--bord); border-radius: 20px; padding: 6px 14px;
     }
@@ -66,19 +78,19 @@
       padding: 40px 24px 80px;
     }
     .eyebrow {
-      font-size: 12px;
+      font-size: 0.75rem;
       letter-spacing: 0.16em;
       text-transform: uppercase;
       color: var(--texte-doux);
       margin: 0 0 8px;
     }
-    h1 { font-size: 26px; font-weight: 600; margin: 0 0 16px; letter-spacing: -0.01em; }
+    h1 { font-size: 1.625rem; font-weight: 600; margin: 0 0 16px; letter-spacing: -0.01em; }
     p { color: var(--texte-doux); }
     p.intro { color: var(--texte); }
     .bouton {
       appearance: none; border: 0; cursor: pointer;
       background: var(--accent-fonce); color: #fff;
-      font-size: 15px; font-weight: 600;
+      font-size: 0.9375rem; font-weight: 600;
       padding: 12px 22px; border-radius: var(--rayon);
       transition: background .15s ease;
     }
@@ -93,20 +105,20 @@
     .erreur {
       background: rgba(201,139,139,.12); border: 1px solid var(--erreur);
       color: var(--erreur); padding: 12px 16px; border-radius: var(--rayon);
-      margin-bottom: 20px; font-size: 14px;
+      margin-bottom: 20px; font-size: 0.875rem;
     }
     .bandeau-apercu {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
       background: var(--accent-fonce); color: #fff;
-      font-size: 13px; text-align: center; padding: 8px 16px;
+      font-size: 0.8125rem; text-align: center; padding: 8px 16px;
     }
     .bandeau-apercu a { color: #fff; font-weight: 600; }
-    .consigne { font-size: 14px; line-height: 1.65; color: var(--texte-doux); }
+    .consigne { font-size: 0.875rem; line-height: 1.65; color: var(--texte-doux); }
     .consigne p { margin: 0 0 10px; }
     .consigne p:last-child { margin-bottom: 0; }
     .consigne strong, .consigne b { font-weight: 600; color: var(--texte); }
     .consigne h2, .consigne h3, .consigne h4 {
-      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.12em; color: var(--texte-doux); margin: 18px 0 6px;
     }
     .consigne h2:first-child, .consigne h3:first-child, .consigne h4:first-child { margin-top: 0; }
@@ -119,7 +131,12 @@
 </head>
 <body>
   {% if apercu or apercu_session %}<div class="bandeau-apercu">Aperçu — les réponses ne sont pas enregistrées &nbsp;·&nbsp; <a href="{% url 'editeur' %}">← Retour à l'éditeur</a></div><div style="height:36px"></div>{% endif %}
-  <button type="button" class="theme-toggle" id="theme-toggle" title="Thème clair / sombre" aria-label="Basculer le thème clair ou sombre"><span class="t-icon">🌙</span></button>
+  <select class="theme-select" id="theme-select" aria-label="Affichage : thème clair, sombre ou contraste élevé">
+    <option value="auto">Affichage : auto</option>
+    <option value="light">Clair</option>
+    <option value="dark">Sombre</option>
+    <option value="contraste">Contraste élevé</option>
+  </select>
   <div style="position:fixed;bottom:14px;left:14px;z-index:50;display:flex;gap:8px;">
     {% if user.is_staff %}<a class="lien-editeur" href="{% url 'editeur' %}" title="Éditeur du questionnaire">⚙ Éditeur</a>{% endif %}
     <a class="lien-editeur" href="{% url 'admin:index' %}" title="Administration">⚑ Admin</a>
@@ -129,18 +146,20 @@
   </main>
   <script>
     (function(){
-      var b = document.getElementById('theme-toggle'); if(!b) return;
-      var mq = window.matchMedia ? matchMedia('(prefers-color-scheme: light)') : null;
-      function eff(){ var a = document.documentElement.getAttribute('data-theme'); return a || ((mq && mq.matches) ? 'light' : 'dark'); }
-      function maj(){ b.querySelector('.t-icon').textContent = eff()==='light' ? '☀️' : '🌙'; }
-      maj();
-      b.addEventListener('click', function(){
-        var t = eff()==='light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', t);
-        try { localStorage.setItem('theme', t); } catch(e){}
-        maj();
+      var sel = document.getElementById('theme-select'); if(!sel) return;
+      var cur = 'auto';
+      try { cur = localStorage.getItem('theme') || 'auto'; } catch(e){}
+      sel.value = cur;
+      sel.addEventListener('change', function(){
+        var v = sel.value;
+        if(v === 'auto'){
+          document.documentElement.removeAttribute('data-theme');
+          try { localStorage.removeItem('theme'); } catch(e){}
+        } else {
+          document.documentElement.setAttribute('data-theme', v);
+          try { localStorage.setItem('theme', v); } catch(e){}
+        }
       });
-      if (mq && mq.addEventListener) mq.addEventListener('change', maj);
     })();
   </script>
 </body>
