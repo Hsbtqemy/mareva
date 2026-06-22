@@ -55,6 +55,8 @@
       line-height: 1; cursor: pointer; font-family: inherit;
     }
     .theme-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    /* En mode aperçu, le bandeau occupe le haut : on descend le menu sous lui. */
+    .theme-select.sous-bandeau { top: 50px; }
     /* Lien éditeur, visible uniquement pour le staff connecté. */
     .lien-editeur {
       font-size: 0.8125rem; text-decoration: none;
@@ -131,7 +133,7 @@
 </head>
 <body>
   {% if apercu or apercu_session %}<div class="bandeau-apercu">Aperçu — les réponses ne sont pas enregistrées &nbsp;·&nbsp; <a href="{% url 'editeur' %}">← Retour à l'éditeur</a></div><div style="height:36px"></div>{% endif %}
-  <select class="theme-select" id="theme-select" aria-label="Affichage : thème clair, sombre ou contraste élevé">
+  <select class="theme-select{% if apercu or apercu_session %} sous-bandeau{% endif %}" id="theme-select" aria-label="Affichage : thème clair, sombre ou contraste élevé">
     <option value="auto">Affichage : auto</option>
     <option value="light">Clair</option>
     <option value="dark">Sombre</option>
